@@ -1,0 +1,47 @@
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: datalake-mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - datalake-net
+
+  spark-master:
+    image: bitnamilegacy/spark:latest
+    container_name: datalake-spark-master
+    environment:
+      - SPARK_MODE=master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+      - ./src:/opt/bitnami/spark/src
+    networks:
+      - datalake-net
+
+  spark-worker:
+    image: bitnamilegacy/spark:latest
+    container_name: datalake-spark-worker
+    environment:
+      - SPARK_MODE=worker
+      - SPARK_MASTER_URL=spark://spark-master:7077
+      - SPARK_WORKER_MEMORY=10G
+      - SPARK_WORKER_CORES=4
+    depends_on:
+      - spark-master
+    volumes:
+      - ./data:/opt/bitnami/spark/data
+      - ./src:/opt/bitnami/spark/src
+    networks:
+      - datalake-net
+
+volumes:
+  mongodb_data:
+
+networks:
+  datalake-net:
+    driver: bridge

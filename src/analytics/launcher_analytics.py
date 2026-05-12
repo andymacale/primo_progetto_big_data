@@ -9,11 +9,12 @@ def run_sql_analytics():
 
     try:
         spark = SparkSession.builder \
-                .appName("DataLake_Analytics") \
-                .master("spark://spark-master:7077") \
-                .getOrCreate()
+            .appName("DataLake_Analytics") \
+            .master("spark://spark-master:7077") \
+            .config("spark.mongodb.write.connection.uri", "mongodb://mongodb:27017") \
+            .getOrCreate()
 
-        query_path = "/opt/bitnami/spark/src/analytics/queries/rilevamento_anomalie.sql"
+        query_path = "/opt/spark/src/analytics/queries/rilevamento_anomalie.sql"
         print("Lettura della query ...")
 
         try:
@@ -24,12 +25,12 @@ def run_sql_analytics():
 
         try:
             print("Apertura del file parquet ...")
-            parquet_path = "/opt/bitnami/spark/data/processed/BigFlow-NIDS.parquet"
+            parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
             df = spark.read.parquet(parquet_path)
             df.createOrReplaceTempView("traffico_nids")
             print("Esecuzione della query ...")
             ris = spark.sql(query)
-            ris.show()
+            ris.show(truncate=False)
         except AnalysisException as e:
             print("Errore di sintassi SQL:")
             print(f"\t{e}")
@@ -37,6 +38,21 @@ def run_sql_analytics():
             print("Errore critico di Spark:")
             print(f"\t{e}")
 
+        if ris:
+            print("Salvataggio su MongoDB ...")
+            try:
+                ris.write \
+                    .format("mongodb") \
+                    .mode("overwrite") \
+                    .option("connection.uri", "mongodb://mongodb:27017") \
+                    .option("database", "cyber_reports") \
+                    .option("collection", "nids_summary") \
+                    .save()
+                print("Salvataggio su MongoDB riuscito (Database: cyber_reports, Collection: nids_summary)")
+
+            except Exception as e:
+                print("Errore durante il salvataggio su MongoDB")
+                print(f"\t{e}")
     except Exception as e:
         print("Errore critico di sistema:")
         print(f"\t{e}")

@@ -14,8 +14,8 @@ def run_sql_analytics():
             .config("spark.speculation", "false") \
             .getOrCreate()
 
-        csv_path = "/opt/bitnami/spark/data/raw/BigFlow-NIDS.csv"
-        output_path = "/opt/bitnami/spark/data/processed/BigFlow-NIDS.parquet"
+        csv_path = "/opt/spark/data/raw/BigFlow-NIDS.csv"
+        output_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
 
         try:
             start_time = time.time()

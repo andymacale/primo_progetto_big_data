@@ -10,32 +10,43 @@ services:
       - datalake-net
 
   spark-master:
-    image: bitnamilegacy/spark:latest
+    image: apache/spark:3.5.1-scala2.12-java11-ubuntu
     container_name: datalake-spark-master
+    user: root
+    command: >
+      bash -c "apt-get update -qq && apt-get install -y -qq python3 python3-pip && 
+      /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master" 
     environment:
       - SPARK_MODE=master
+      - PYSPARK_PYTHON=python3
+      - SPARK_MASTER_PORT=7077
+      - SPARK_MASTER_WEBUI_PORT=8080
     ports:
       - "8080:8080"
       - "7077:7077"
     volumes:
-      - ./data:/opt/bitnami/spark/data
-      - ./src:/opt/bitnami/spark/src
+      - ./data:/opt/spark/data
+      - ./src:/opt/spark/src
     networks:
       - datalake-net
 
   spark-worker:
-    image: bitnamilegacy/spark:latest
+    image: apache/spark:3.5.1-scala2.12-java11-ubuntu
     container_name: datalake-spark-worker
+    user: root
+    command: >
+      bash -c "apt-get update -qq && apt-get install -y -qq python3 python3-pip && 
+      /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://spark-master:7077"
     environment:
       - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_MEMORY=10G
+      - PYSPARK_PYTHON=python3
       - SPARK_WORKER_CORES=4
+      - SPARK_WORKER_MEMORY=10G
     depends_on:
       - spark-master
     volumes:
-      - ./data:/opt/bitnami/spark/data
-      - ./src:/opt/bitnami/spark/src
+      - ./data:/opt/spark/data
+      - ./src:/opt/spark/src
     networks:
       - datalake-net
 

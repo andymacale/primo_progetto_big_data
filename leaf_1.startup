@@ -1,0 +1,29 @@
+# Create loopback
+ip addr add 10.255.0.5/32 dev lo
+ip route add 10.255.0.5/32 dev lo
+
+# Setting up VXLAN interfaces
+# VNI 100: LAN R (web_server + sniffer)
+ip link add vtep100 type vxlan id 100 dev lo dstport 4789 local 10.255.0.5 nolearning
+
+# Creating bridge for LAN R
+ip link add br100 type bridge
+ip link set br100 addrgenmode none
+ip addr add 2.0.0.129/26 dev br100
+
+# Attach VTEP and server-facing interface (eth0=R) to bridge
+ip link set dev vtep100 master br100 addrgenmode none
+ip link set vtep100 type bridge_slave neigh_suppress on learning off
+ip link set dev eth0 master br100
+
+# Enable bridge VLANs
+ip link set dev br100 type bridge vlan_filtering 1
+bridge vlan add vid 100 dev vtep100 pvid untagged
+bridge vlan add vid 100 dev eth0 pvid untagged
+
+# Enable interfaces
+ip link set up dev vtep100
+ip link set up dev br100
+ip link set up dev eth0
+
+systemctl start frr

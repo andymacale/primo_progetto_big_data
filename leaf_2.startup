@@ -1,0 +1,44 @@
+# Create loopback
+ip addr add 10.255.0.6/32 dev lo
+ip route add 10.255.0.6/32 dev lo
+
+# Setting up VXLAN interfaces
+# VNI 200: LAN S (spark)
+ip link add vtep200 type vxlan id 200 dev lo dstport 4789 local 10.255.0.6 nolearning
+# VNI 300: LAN T (mongo_db)
+ip link add vtep300 type vxlan id 300 dev lo dstport 4789 local 10.255.0.6 nolearning
+
+# Bridge per LAN S (spark - eth0)
+ip link add br200 type bridge
+ip link set br200 addrgenmode none
+ip addr add 2.0.0.193/27 dev br200
+ip link set dev vtep200 master br200 addrgenmode none
+ip link set vtep200 type bridge_slave neigh_suppress on learning off
+ip link set dev eth0 master br200
+
+# Bridge per LAN T (mongo_db - eth1)
+ip link add br300 type bridge
+ip link set br300 addrgenmode none
+ip addr add 2.0.0.225/27 dev br300
+ip link set dev vtep300 master br300 addrgenmode none
+ip link set vtep300 type bridge_slave neigh_suppress on learning off
+ip link set dev eth1 master br300
+
+# Enable bridge VLANs
+ip link set dev br200 type bridge vlan_filtering 1
+bridge vlan add vid 200 dev vtep200 pvid untagged
+bridge vlan add vid 200 dev eth0 pvid untagged
+
+ip link set dev br300 type bridge vlan_filtering 1
+bridge vlan add vid 300 dev vtep300 pvid untagged
+bridge vlan add vid 300 dev eth1 pvid untagged
+
+# Enable interfaces
+ip link set up dev vtep200
+ip link set up dev vtep300
+ip link set up dev br200
+ip link set up dev br300
+ip link set up dev eth0
+ip link set up dev eth1
+
+systemctl start frr

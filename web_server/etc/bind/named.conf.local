@@ -1,0 +1,4 @@
+zone "cyber.net" {
+    type master;
+    file "/etc/bind/db.cyber.net";
+};

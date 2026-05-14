@@ -1,0 +1,14 @@
+$TTL    604800
+@       IN      SOA     ns.cyber.net. admin.cyber.net. (
+                              2         ; Serial
+                         604800         ; Refresh
+                          86400         ; Retry
+                        2419200         ; Expire
+                         604800 )       ; Negative Cache TTL
+;
+@       IN      NS      ns.cyber.net.
+ns      IN      A       2.0.0.131
+@       IN      A       2.0.0.131
+www     IN      A       2.0.0.131
+mongo   IN      A       2.0.0.226
+spark   IN      A       2.0.0.194

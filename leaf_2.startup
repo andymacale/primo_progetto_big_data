@@ -28,10 +28,12 @@ ip link set dev eth1 master br300
 ip link set dev br200 type bridge vlan_filtering 1
 bridge vlan add vid 200 dev vtep200 pvid untagged
 bridge vlan add vid 200 dev eth0 pvid untagged
+bridge vlan add vid 200 dev br200 self pvid untagged
 
 ip link set dev br300 type bridge vlan_filtering 1
 bridge vlan add vid 300 dev vtep300 pvid untagged
 bridge vlan add vid 300 dev eth1 pvid untagged
+bridge vlan add vid 300 dev br300 self pvid untagged
 
 # Enable interfaces
 ip link set up dev vtep200

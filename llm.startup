@@ -1,0 +1,13 @@
+# VNI 300 — LAN T
+ip address add 2.0.0.226/27 dev eth0
+ip route add default via 2.0.0.225 dev eth0
+
+# Avvio Ollama server in background
+ollama serve &
+
+# Attendi che il server sia pronto
+sleep 5
+
+# Pull di un modello leggero (1-2GB) adatto per un ambiente lab
+# Alternativa: llama3.2:1b  oppure  phi3:mini
+ollama pull mistral &

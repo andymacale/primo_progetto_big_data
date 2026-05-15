@@ -1,2 +1,17 @@
 ip address add 2.0.0.194/27 dev eth0
 ip route add default via 2.0.0.193 dev eth0
+
+# 2. Variabili d'ambiente
+export SPARK_MODE=master
+export PYSPARK_PYTHON=python3
+export SPARK_MASTER_PORT=7077
+export SPARK_MASTER_WEBUI_PORT=8080
+
+# 3. Avvio Spark Master
+/opt/spark/bin/spark-class org.apache.spark.deploy.master.Master &
+
+# 4. Avvio Spark Worker
+export SPARK_MODE=worker
+export SPARK_WORKER_CORES=4
+export SPARK_WORKER_MEMORY=10G
+/opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://127.0.0.1:7077 &

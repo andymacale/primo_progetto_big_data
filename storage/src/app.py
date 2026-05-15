@@ -15,10 +15,20 @@ st.sidebar.header("Connettività Servizi")
 
 # --- FUNZIONI DI CONNESSIONE ---
 
+@st.cache_resource
+def get_mongo_client():
+    return MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=5000)
+
+@st.cache_resource
+def get_spark_session():
+    return SparkSession.builder \
+        .appName("StreamlitAdmin") \
+        .master("spark://spark.cyber.net:7077") \
+        .getOrCreate()
+
 def test_mongo():
     try:
-        # Punta al DNS configurato: 2.0.0.226
-        client = MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=2000)
+        client = get_mongo_client()
         client.server_info() 
         return True, client
     except Exception as e:
@@ -26,11 +36,11 @@ def test_mongo():
 
 def test_spark():
     try:
-        # Punta al Master Spark: 2.0.0.194 porta 7077
-        spark = SparkSession.builder \
-            .appName("StreamlitAdmin") \
-            .master("spark://spark.cyber.net:7077") \
-            .getOrCreate()
+        spark = get_spark_session()
+        # Verifica se il contesto è attivo
+        if spark.sparkContext._jsc.sc().isStopped():
+            st.cache_resource.clear() # Forza il refresh se stoppato
+            spark = get_spark_session()
         return True, spark
     except Exception as e:
         return False, str(e)

@@ -1,4 +1,12 @@
+ln -sf /usr/share/zoneinfo/Europe/Rome /etc/localtime
 ip address add 2.0.0.195/27 dev eth0
 ip route add default via 2.0.0.193 dev eth0
 echo "nameserver 10.1.0.2" > /etc/resolv.conf
 mongod --bind_ip_all --fork --logpath /var/log/mongodb.log
+
+# --- HARDENING: Solo IP fidati possono accedere a MongoDB ---
+iptables -A INPUT -s 2.0.0.194 -j ACCEPT   # Spark
+iptables -A INPUT -s 2.0.0.193 -j ACCEPT   # Leaf_2 (gateway per admin)
+iptables -A INPUT -s 2.0.0.196 -j ACCEPT   # Sniffer (monitoraggio)
+iptables -A INPUT -s 127.0.0.1 -j ACCEPT   # Localhost
+iptables -A INPUT -p tcp --dport 27017 -j DROP  # Blocca tutto il resto su porta MongoDB

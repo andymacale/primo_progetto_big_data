@@ -1,5 +1,10 @@
+ln -sf /usr/share/zoneinfo/Europe/Rome /etc/localtime
 ip address add 10.0.0.2/16 dev eth0
 ip route add default via 10.0.0.1 dev eth0
+
+# Risoluzione nomi per i servizi del Data Lake
+echo "2.0.0.194 spark-master" >> /etc/hosts
+echo "2.0.0.195 mongo.cyber.net" >> /etc/hosts
 
 sleep 15
 bash /app/gestisci_app.sh start

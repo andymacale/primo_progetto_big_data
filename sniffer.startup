@@ -1,3 +1,7 @@
+ln -sf /usr/share/zoneinfo/Europe/Rome /etc/localtime
 ip address add 2.0.0.130/26 dev eth0
 ip route add default via 2.0.0.129 dev eth0
-tcpdump -i eth0 -w /catture/analisi_traffico.pcap &
+ip address add 2.0.0.196/27 dev eth1
+mkdir -p /catture
+chmod 777 /catture
+tcpdump -U -i any -w /catture/analisi_traffico.pcap > /var/log/sniffer.log 2>&1 &

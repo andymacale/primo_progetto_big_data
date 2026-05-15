@@ -30,6 +30,7 @@ select vettore_attacco,
        occorrenze,
        durata_media_flusso,
        pacchetti_totali,
+       traffico_b,
        case
             when traffico_b >= 1024.0 * 1024.0 * 1024.0 * 1024.0 then concat(round(traffico_b * 1.0 / (1024.0 * 1024.0 * 1024.0 * 1024.0), 2), 'TB')
             when traffico_b >= 1024.0 * 1024.0 * 1024.0 then concat(round(traffico_b * 1.0 / (1024.0 * 1024.0 * 1024.0), 2), 'GB')

@@ -10,8 +10,8 @@ def run_sql_analytics():
     try:
         spark = SparkSession.builder \
             .appName("DataLake_Analytics") \
-            .master("spark://spark-master:7077") \
-            .config("spark.mongodb.write.connection.uri", "mongodb://mongodb:27017") \
+            .master("spark://spark.cyber.net:7077") \
+            .config("spark.mongodb.write.connection.uri", "mongodb://mongo.cyber.net:27017") \
             .getOrCreate()
 
         query_path = "/opt/spark/src/analytics/queries/rilevamento_anomalie.sql"
@@ -44,7 +44,7 @@ def run_sql_analytics():
                 ris.write \
                     .format("mongodb") \
                     .mode("overwrite") \
-                    .option("connection.uri", "mongodb://mongodb:27017") \
+                    .option("connection.uri", "mongodb://mongo.cyber.net:27017") \
                     .option("database", "cyber_reports") \
                     .option("collection", "nids_summary") \
                     .save()

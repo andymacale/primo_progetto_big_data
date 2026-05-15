@@ -1,6 +1,7 @@
 # VNI 300 — LAN T
 ip address add 2.0.0.226/27 dev eth0
 ip route add default via 2.0.0.225 dev eth0
+echo "nameserver 10.1.0.2" > /etc/resolv.conf
 
 # Avvio Ollama server in background
 ollama serve &

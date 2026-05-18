@@ -8,3 +8,9 @@ echo "2.0.0.195 mongo.cyber.net" >> /etc/hosts
 
 sleep 15
 bash /app/gestisci_app.sh start
+
+# Sincronizza le regole firewall pre-esistenti sul web_server
+python3 /app/sync_firewall.py > /var/log/sync_firewall.log 2>&1
+
+# Avvia l'ingestore PCAP per analizzare il traffico in background
+python3 /app/pcap_ingestor.py > /var/log/pcap_ingestor.log 2>&1 &

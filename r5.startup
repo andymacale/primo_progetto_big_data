@@ -16,3 +16,6 @@ ip route add blackhole 10.0.0.0/8
 ip route add blackhole 2.0.0.128/25
 
 systemctl start frr
+
+# Avvio del demone Firewall perimetrale del Data Center (unbuffered)
+python3 -u /firewall_daemon.py > /var/log/firewall_daemon.log 2>&1 &

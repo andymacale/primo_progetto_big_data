@@ -9,6 +9,8 @@ import datetime
 from scapy.all import rdpcap, IP, TCP, UDP, ARP
 from pyspark.sql import SparkSession
 from pyspark import SparkContext
+import socket
+
 
 # Configurazione Pagina
 st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", layout="wide")
@@ -108,6 +110,11 @@ def log_action(user, action, details):
 # --- FUNZIONE BLOCCO IP (Risposta Attiva) ---
 def block_ip(ip_address):
     try:
+        # Invia comando UDP al firewall daemon su r5 (Gateway)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.sendto(f"BLOCK:{ip_address}".encode("utf-8"), ("10.0.0.1", 5000))
+        sock.close()
+
         # Registra l'IP nella blocklist su MongoDB
         m_client["datalake"]["blocked_ips"].update_one(
             {"ip": ip_address},
@@ -119,7 +126,7 @@ def block_ip(ip_address):
             }},
             upsert=True
         )
-        log_action("NIDS", "BlockIP", f"IP {ip_address} aggiunto alla blocklist")
+        log_action("NIDS", "BlockIP", f"IP {ip_address} aggiunto alla blocklist e bloccato su r5")
         return True
     except Exception as e:
         log_action("NIDS", "BlockIP-FAILED", f"Errore: {str(e)}")

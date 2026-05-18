@@ -15,4 +15,9 @@ ip route add default via 2.0.0.129 dev eth0
 ip address add 2.0.0.196/27 dev eth1
 mkdir -p /catture
 chmod 777 /catture
-tcpdump -U -i any -w /catture/analisi_traffico.pcap > /var/log/sniffer.log 2>&1 &
+# Avvia tcpdump in un ciclo infinito che cattura solo 1000 pacchetti alla volta,
+# garantendo che il file PCAP non cresca all'infinito e le prestazioni rimangano stellari!
+while true; do
+    tcpdump -i any -c 1000 -w /catture/analisi_traffico.pcap > /var/log/sniffer.log 2>&1
+    sleep 1
+done &

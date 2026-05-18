@@ -7,8 +7,19 @@ def ingest_pcap():
     pcap_path = "/catture/analisi_traffico.pcap"
     client = MongoClient("mongodb://mongo.cyber.net:27017/")
     db = client["datalake"]
-    collection = db["live_traffic"]
     
+    # Inizializza/Converti la collezione 'live_traffic' a Capped Collection (max 5000 pacchetti, 10MB)
+    try:
+        if "live_traffic" not in db.list_collection_names():
+            db.create_collection("live_traffic", capped=True, size=10 * 1024 * 1024, max=5000)
+            print("Collezione 'live_traffic' creata come Capped Collection (limite 5000 pacchetti).")
+        else:
+            db.command("convertToCapped", "live_traffic", size=10 * 1024 * 1024, max=5000)
+            print("Collezione 'live_traffic' convertita con successo in Capped Collection (limite 5000 pacchetti).")
+    except Exception as ec:
+        print(f"Nota su Capped Collection: {ec}")
+        
+    collection = db["live_traffic"]
     print(f"Ingestore PCAP avviato. Monitoraggio di {pcap_path}...")
     
     last_processed_count = 0
@@ -22,6 +33,11 @@ def ingest_pcap():
                     time.sleep(1)
                     continue
                 current_count = len(packets)
+                
+                # Se lo sniffer ha sovrascritto/ruotato il file pcap, resettiamo il contatore
+                if current_count < last_processed_count:
+                    last_processed_count = 0
+                    print("Rilevata sovrascrittura/rotazione del file PCAP. Contatore resettato.")
                 
                 if current_count > last_processed_count:
                     # Prendi solo i nuovi pacchetti

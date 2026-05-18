@@ -1,0 +1,77 @@
+/* templates/gemini_style.css - CSS per lo stile Gemini Premium integrato nel tema Streamlit */
+
+/* Container esterno stile Gemini (stForm) */
+div[data-testid="stForm"] {
+    background-color: var(--secondary-background-color) !important;
+    border: 1px solid rgba(128, 128, 128, 0.2) !important;
+    border-radius: 28px !important;
+    padding: 12px 24px !important;
+    box-shadow: 0 4px 18px rgba(0,0,0,0.1) !important;
+    margin-bottom: 12px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+}
+
+/* Rendi trasparente e privo di bordi l'input element ed i suoi contenitori intermedi baseweb */
+div[data-testid="stForm"] div[data-testid="stTextInput"] div[data-baseweb="input"],
+div[data-testid="stForm"] div[data-testid="stTextInput"] div[data-baseweb="input"] > div {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+}
+
+div[data-testid="stForm"] div[data-testid="stTextInput"] input {
+    background-color: transparent !important;
+    border: none !important;
+    font-size: 16px !important;
+    color: var(--text-color) !important;
+    box-shadow: none !important;
+    padding: 0px !important;
+    height: 48px !important;
+}
+
+/* Rimuovi la label e lo spazio vuoto sopra il text input */
+div[data-testid="stForm"] div[data-testid="stTextInput"] label {
+    display: none !important;
+}
+
+/* Rimuovi lo spazio extra */
+div[data-testid="stForm"] div[data-testid="stTextInput"] {
+    margin-bottom: 0px !important;
+}
+
+/* Stilizzazione del selettore modello in linea */
+div[data-testid="stForm"] div[data-testid="stSelectbox"] div[data-baseweb="select"] {
+    background-color: var(--background-color) !important;
+    border: 1px solid rgba(128, 128, 128, 0.3) !important;
+    border-radius: 20px !important;
+    height: 38px !important;
+}
+
+div[data-testid="stForm"] div[data-testid="stSelectbox"] div[data-baseweb="select"]:hover {
+    border-color: #9b59b6 !important;
+}
+
+div[data-testid="stForm"] div[data-testid="stSelectbox"] label {
+    display: none !important;
+}
+
+/* Pulsante Invia Chiedi all'IA (Form Submit) */
+div[data-testid="stForm"] button[data-testid="stFormSubmitButton"] {
+    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%) !important;
+    border: none !important;
+    border-radius: 20px !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+    height: 38px !important;
+    padding: 0px 24px !important;
+    transition: all 0.2s ease-in-out !important;
+    width: 100% !important;
+}
+
+div[data-testid="stForm"] button[data-testid="stFormSubmitButton"]:hover {
+    transform: scale(1.03) !important;
+    box-shadow: 0 0 12px rgba(155, 89, 182, 0.4) !important;
+    color: #ffffff !important;
+}

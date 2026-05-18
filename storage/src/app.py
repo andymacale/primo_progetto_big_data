@@ -53,6 +53,23 @@ if m_ok:
     except:
         pass
 
+def force_spark_reset():
+    try:
+        from pyspark.sql import SparkSession
+        active_session = SparkSession.getActiveSession()
+        if active_session is not None:
+            active_session.stop()
+    except:
+        pass
+    try:
+        from pyspark import SparkContext
+        sc = SparkContext._active_spark_context
+        if sc is not None:
+            sc.stop()
+    except:
+        pass
+    st.cache_resource.clear()
+
 @st.cache_resource
 def get_spark_session():
     jars = [
@@ -90,8 +107,8 @@ with st.sidebar:
         s_test.conf.get("spark.app.name")
         st.success("Spark Master: Collegato")
     except Exception as e:
-        # Se la sessione è morta o disconnessa, eliminiamo la cache obsoleta
-        st.cache_resource.clear()
+        # Arresta attivamente il contesto JVM ed elimina la cache
+        force_spark_reset()
         try:
             # Riproviamo immediatamente a ristabilire una connessione pulita
             s_test = get_spark_session()
@@ -102,7 +119,7 @@ with st.sidebar:
     
     st.header("Gestione Sessioni")
     if st.button("Hard Reset Spark"):
-        st.cache_resource.clear()
+        force_spark_reset()
         st.rerun()
     
     masking = st.toggle("Privacy Mode (Masking)", False)
@@ -202,7 +219,7 @@ with tab2:
         s_session.conf.get("spark.app.name")
         s_ok = True
     except:
-        st.cache_resource.clear()
+        force_spark_reset()
         try:
             s_session = get_spark_session()
             s_session.conf.get("spark.app.name")
@@ -454,43 +471,52 @@ with tab5:
     st.header("🤖 Assistente Decisionale IA (Ollama)")
     st.write("Interroga le intelligenze artificiali locali ospitate nel nodo `llm` del Data Center per chiarimenti tecnici, mitigazione delle minacce e hardening di rete.")
     
-    # Selezione del Modello e Opzioni
-    st.subheader("⚙️ Configurazione IA")
-    
-    col_sel, col_chk = st.columns([2, 1])
-    with col_sel:
-        modello_scelto = st.selectbox(
-            "Scegli il modello linguistico locale da utilizzare per l'analisi:",
-            ["Qwen 2.5 (0.5B) - Ultra-veloce (CPU lightweight)", "DeepSeek R1 (1.5B) - Ragionamento e Pensiero Avanzato (DeepSeek-R1-Distill)"],
-            index=1  # Preselezioniamo DeepSeek R1 per default!
-        )
-    with col_chk:
-        st.write("") # Spaziatore per allineamento verticale
-        st.write("")
+    # Carica lo stile CSS dal file esterno separato
+    css_path = "/app/templates/gemini_style.css"
+    if not os.path.exists(css_path):
+        css_path = "templates/gemini_style.css"
+    if os.path.exists(css_path):
+        with open(css_path, "r", encoding="utf-8") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
 
-        model_id = "qwen2.5:0.5b"
-        if "DeepSeek" in modello_scelto:
-            model_id = "deepseek-r1:1.5b"
-        is_qwen = "qwen" in model_id
+    # Creazione del form in stile Gemini Chat Pill (solo input e invio)
+    with st.form(key="gemini_chat_form", border=False):
+        col_input, col_submit = st.columns([10, 2])
+        with col_input:
+            prompt_utente = st.text_input(
+                "Chiedi a CyberCop...",
+                placeholder="Chiedi a CyberCop ed invia con Invio (es. 'Quali IP ho bloccato nel firewall?')...",
+                label_visibility="collapsed"
+            )
+        with col_submit:
+            submit_clicked = st.form_submit_button("Invia ➔")
+
+    # Controlli sotto il chat pill (fuori dal form per re-run reattivo immediato!)
+    col_model, col_chk = st.columns([4, 8])
+    with col_model:
+        modello_scelto = st.selectbox(
+            "Scegli modello:",
+            ["Qwen 2.5 (0.5B)", "DeepSeek R1 (1.5B)"],
+            index=1,
+            label_visibility="collapsed"
+        )
+
+    # Determinazione del modello selezionato
+    model_id = "qwen2.5:0.5b"
+    if "DeepSeek" in modello_scelto:
+        model_id = "deepseek-r1:1.5b"
+    is_qwen = "qwen" in model_id
+
+    # Checkbox reattiva: si disabilita all'istante se viene selezionato Qwen!
+    with col_chk:
         mostra_thinking = st.checkbox(
-            "Mostra Ragionamento", 
-            value=True, 
-            help="Se attivo, forza ed evidenzia in tempo reale la fase di ragionamento (e calcola il tempo totale impiegato).",
+            "💡 Mostra Ragionamento (DeepSeek)", 
+            value=False, 
+            help="Se attivo, mostra la fase di ragionamento in tempo reale.",
             disabled=is_qwen
         )
-        
-    
-        
-    st.write("")
-        
-    # Input di testo dell'utente
-    prompt_utente = st.text_area(
-        "✍️ Fai una domanda all'assistente di sicurezza:", 
-        placeholder="Scrivi qui la tua domanda (es. 'Spiegami il DNS Amplification' o 'Quali IP ho bloccato nel firewall?')...", 
-        height=100
-    )
-        
-    if st.button("🤖 Chiedi all'IA", type="primary"):
+
+    if submit_clicked:
         if prompt_utente.strip():
             
             # --- RAG: Ingestione dinamica dello stato di MongoDB ---

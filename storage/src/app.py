@@ -11,6 +11,7 @@ from pyspark.sql import SparkSession
 from pyspark import SparkContext
 import socket
 import requests
+import json
 
 
 
@@ -85,9 +86,19 @@ with st.sidebar:
     
     try:
         s_test = get_spark_session()
+        # Test di vitalità effettivo sul JVM gateway/SparkContext
+        s_test.conf.get("spark.app.name")
         st.success("Spark Master: Collegato")
     except Exception as e:
-        st.error(f"Spark Master: Disconnesso\n {e}")
+        # Se la sessione è morta o disconnessa, eliminiamo la cache obsoleta
+        st.cache_resource.clear()
+        try:
+            # Riproviamo immediatamente a ristabilire una connessione pulita
+            s_test = get_spark_session()
+            s_test.conf.get("spark.app.name")
+            st.success("Spark Master: Collegato (Auto-ripristinato)")
+        except Exception as ex:
+            st.error(f"Spark Master: Disconnesso\n {ex}")
     
     st.header("Gestione Sessioni")
     if st.button("Hard Reset Spark"):
@@ -186,12 +197,18 @@ with tab1:
 # ===================== TAB 2: SPARK =====================
 with tab2:
     st.header("📊 Intelligence Rilevamento Anomalie")
-    s_session = None
     try:
         s_session = get_spark_session()
+        s_session.conf.get("spark.app.name")
         s_ok = True
     except:
-        s_ok = False
+        st.cache_resource.clear()
+        try:
+            s_session = get_spark_session()
+            s_session.conf.get("spark.app.name")
+            s_ok = True
+        except:
+            s_ok = False
     
     if s_ok:
         if st.button("Avvia Analisi Real-time") or st.session_state.get("spark_analysis_run", False):
@@ -437,18 +454,35 @@ with tab5:
     st.header("🤖 Assistente Decisionale IA (Ollama)")
     st.write("Interroga le intelligenze artificiali locali ospitate nel nodo `llm` del Data Center per chiarimenti tecnici, mitigazione delle minacce e hardening di rete.")
     
-    # Selezione del Modello
-    st.subheader("⚙️ Selezione Modello LLM")
-    modello_scelto = st.selectbox(
-        "Scegli il modello linguistico locale da utilizzare per l'analisi:",
-        ["Qwen 2.5 (0.5B) - Ultra-veloce (CPU lightweight)", "DeepSeek R1 (1.5B) - Ragionamento e Pensiero Avanzato (DeepSeek-R1-Distill)"],
-        index=0
-    )
+    # Selezione del Modello e Opzioni
+    st.subheader("⚙️ Configurazione IA")
     
-    model_id = "qwen2.5:0.5b"
-    if "DeepSeek" in modello_scelto:
-        model_id = "deepseek-r1:1.5b"
-             
+    col_sel, col_chk = st.columns([2, 1])
+    with col_sel:
+        modello_scelto = st.selectbox(
+            "Scegli il modello linguistico locale da utilizzare per l'analisi:",
+            ["Qwen 2.5 (0.5B) - Ultra-veloce (CPU lightweight)", "DeepSeek R1 (1.5B) - Ragionamento e Pensiero Avanzato (DeepSeek-R1-Distill)"],
+            index=1  # Preselezioniamo DeepSeek R1 per default!
+        )
+    with col_chk:
+        st.write("") # Spaziatore per allineamento verticale
+        st.write("")
+
+        model_id = "qwen2.5:0.5b"
+        if "DeepSeek" in modello_scelto:
+            model_id = "deepseek-r1:1.5b"
+        is_qwen = "qwen" in model_id
+        mostra_thinking = st.checkbox(
+            "Mostra Ragionamento", 
+            value=True, 
+            help="Se attivo, forza ed evidenzia in tempo reale la fase di ragionamento (e calcola il tempo totale impiegato).",
+            disabled=is_qwen
+        )
+        
+    
+        
+    st.write("")
+        
     # Input di testo dell'utente
     prompt_utente = st.text_area(
         "✍️ Fai una domanda all'assistente di sicurezza:", 
@@ -487,8 +521,9 @@ with tab5:
                 except Exception as ex:
                     contesto_sicurezza += f"\n(Errore nel recupero dei dati da MongoDB: {ex})\n"
             
-            prompt_completo = f"""[IMPORTANTE]: RISPONDI ED ELABORA LA RISPOSTA INTERAMENTE IN LINGUA ITALIANA.
-Anche se stai pensando (all'interno del tag <think>), rifletti e scrivi interamente in LINGUA ITALIANA. Non usare mai l'inglese né per la risposta finale né per i tuoi pensieri.
+            # Enforce rigoroso dell'italiano nel prompt
+            prompt_completo = f"""[IMPORTANTE - RISPONDI SOLO ED ESCLUSIVAMENTE IN LINGUA ITALIANA]:
+Tutta la tua risposta, compresi i pensieri e il ragionamento logico, deve essere scritta interamente in LINGUA ITALIANA con grammatica e terminologia tecnica perfette. Non usare mai l'inglese per nessun motivo.
 
 Di seguito ti vengono forniti i dati reali correnti del Data Center prelevati dal database MongoDB. Rispondi alla domanda dell'utente basandoti su queste informazioni se la domanda riguarda lo stato del sistema o gli IP bloccati, altrimenti rispondi liberamente in base alle tue conoscenze di sicurezza informatica.
 
@@ -497,16 +532,27 @@ Di seguito ti vengono forniti i dati reali correnti del Data Center prelevati da
 Domanda dell'utente: {prompt_utente}"""
 
             system_instructions = (
-                "Sei un Cyber Security Analyst senior (SOC L3) esperto e autorevole. "
-                "Rispondi SEMPRE in italiano con terminologia tecnica, formale e precisa. "
-                "Non inventare concetti strani o traduzioni letterali errate. "
-                "Se ti vengono presentati IP bloccati o allarmi, analizzali dal punto di vista sistemistico ed applicativo "
-                "suggerendo best-practices reali (es. iptables, firewalling di frontiera, rate-limiting, monitoraggio dei log)."
+                "Sei un Cyber Security Analyst senior (SOC L3) esperto e autorevole del Data Center. "
+                "Rispondi SEMPRE in perfetto italiano formale e grammaticalmente ineccepibile. "
+                "Usa esclusivamente la terminologia tecnica italiana ufficiale per la sicurezza informatica. Esempi tassativi:\n"
+                "- Traduci 'segmentation' con 'segmentazione' (MAI usare parole inventate o arcaiche come 'seguentiatione').\n"
+                "- Traduci 'employed' o 'used' con 'impiegati' o 'utilizzati' (MAI scrivere 'impieghiati').\n"
+                "- Traduci 'query', 'check' o 'investigation' con 'interrogazione', 'verifica' o 'analisi' (MAI usare 'inchiesta').\n"
+                "- Traduci 'timestamp' con 'orario' o 'data e ora' (MAI usare 'marchio temporale').\n"
+                "Rileggi mentalmente ed evita qualsiasi refuso grammaticale o traduzione letterale errata dall'inglese. "
+                "Sia i tuoi pensieri e ragionamenti che la risposta finale devono essere scritti interamente in italiano corretto."
             )
 
-            with st.spinner("L'IA sta elaborando la risposta con i dati in tempo reale del Data Center..."):
+            thinking_title = st.empty()
+            thinking_area = st.empty()
+            answer_title = st.empty()
+            answer_area = st.empty()
+            timer_area = st.empty()
+
+            with st.spinner("L'IA sta elaborando la risposta in tempo reale..."):
                 try:
-                    # Chiamata al container llm locale su VNI 300
+                    start_time = time.time()
+                    # Chiamata in streaming al container llm locale su VNI 300
                     response = requests.post(
                         "http://2.0.0.226:11434/api/generate",
                         json={
@@ -514,35 +560,59 @@ Domanda dell'utente: {prompt_utente}"""
                             "prompt": prompt_completo,
                             "system": system_instructions,
                             "options": {
-                                "temperature": 0.2,
+                                "temperature": 0.1,  # Più basso per renderlo più deterministico ed evitare strafalcioni
                                 "top_p": 0.85,
                                 "num_predict": 800
                             },
-                            "stream": False
+                            "stream": True
                         },
-                        timeout=90
+                        stream=True,
+                        timeout=(5, 300)  # 5s per connettersi, 300s max per inattività dei chunk (consente il model load su CPU)
                     )
+                    
                     if response.status_code == 200:
-                        risposta_testo = response.json().get("response", "Nessuna risposta generata.")
-                        
-                        # Parsing del pensiero (thinking) di DeepSeek se presente
                         thinking_text = ""
-                        clean_answer = risposta_testo
-                        if "<think>" in risposta_testo:
-                            if "</think>" in risposta_testo:
-                                parts = risposta_testo.split("</think>")
-                                thinking_text = parts[0].replace("<think>", "").strip()
-                                clean_answer = parts[1].strip()
-                            else:
-                                thinking_text = risposta_testo.replace("<think>", "").strip()
-                                clean_answer = "*(Il modello ha esaurito i token o il tempo durante la fase di ragionamento e non ha prodotto una risposta finale. Riprova con una domanda più specifica.)*"
+                        clean_answer = ""
                         
-                        st.markdown("### 🤖 Risposta dell'Assistente IA:")
-                        if thinking_text:
-                            with st.expander("💭 Fase di Ragionamento (DeepSeek R1 Thinking)", expanded=True):
-                                st.markdown(f"*{thinking_text}*")
-                        st.info(clean_answer)
-                        # Registra l'azione nel log di sicurezza
+                        for line in response.iter_lines():
+                            if line:
+                                chunk = json.loads(line.decode('utf-8'))
+                                response_token = chunk.get("response", "")
+                                thinking_token = chunk.get("thinking", "")
+                                elapsed = time.time() - start_time
+                                
+                                # Visualizzazione del Timer e Statistiche in tempo reale (per entrambi)
+                                timer_area.markdown(
+                                    f"<div style='font-size:12px; opacity:0.8; margin-top:5px; text-align:right;'>"
+                                    f"⏳ Tempo elaborazione attivo: <strong>{elapsed:.2f} secondi</strong>"
+                                    f"</div>",
+                                    unsafe_allow_html=True
+                                )
+                                
+                                if is_qwen:
+                                    # Qwen scrive tutto direttamente senza alcuna fase di ragionamento o box collassabile
+                                    clean_answer += response_token
+                                else:
+                                    # DeepSeek R1 gestisce nativamente la chiave 'thinking' e 'response'
+                                    if thinking_token:
+                                        thinking_text += thinking_token
+                                    if response_token:
+                                        clean_answer += response_token
+                                
+                                # Visualizzazione del ragionamento in tempo reale (solo per DeepSeek)
+                                if not is_qwen and thinking_text:
+                                    if mostra_thinking:
+                                        thinking_title.markdown("💭 **Fase di Ragionamento (AI Thinking):**")
+                                        thinking_area.markdown(f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8;'>{thinking_text}</div>", unsafe_allow_html=True)
+                                    else:
+                                        thinking_title.caption("💡 *Fase di Ragionamento (Thinking) nascosta dalle impostazioni*")
+                                
+                                # Visualizzazione della risposta finale in tempo reale (per entrambi)
+                                if clean_answer:
+                                    answer_title.markdown("### 🤖 Risposta dell'Assistente IA:")
+                                    answer_area.info(clean_answer)
+                                    
+                        # Registra l'azione nel log di sicurezza al termine della generazione completa
                         log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt_utente[:40]}...'")
                     else:
                         st.error(f"Errore di comunicazione con il server LLM: Stato {response.status_code}")

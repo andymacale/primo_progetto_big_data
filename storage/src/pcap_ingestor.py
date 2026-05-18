@@ -87,16 +87,18 @@ def ingest_pcap():
                                         attacker_ip = src_ip
                             
                             if alert_msg and attacker_ip:
-                                if attacker_ip in blocked_ips:
-                                    print(f"BLOCCATO: Traffico da {attacker_ip} ignorato (IP in blocklist)")
+                                is_blocked = attacker_ip in blocked_ips
+                                alert_coll.insert_one({
+                                    "timestamp": p["timestamp"],
+                                    "message": alert_msg,
+                                    "severity": "INFO" if is_blocked else "CRITICAL",
+                                    "source": attacker_ip,
+                                    "target": p.get("dst", "???"),
+                                    "status": "MITIGATED" if is_blocked else "ACTIVE"
+                                })
+                                if is_blocked:
+                                    print(f"MITIGATO: Attacco da {attacker_ip} bloccato a livello di rete, registrato per tracciabilità.")
                                 else:
-                                    alert_coll.insert_one({
-                                        "timestamp": p["timestamp"],
-                                        "message": alert_msg,
-                                        "severity": "CRITICAL",
-                                        "source": attacker_ip,
-                                        "target": p.get("dst", "???")
-                                    })
                                     print(f"ALERT: {alert_msg} [Attaccante: {attacker_ip}]")
 
                         print(f"Inseriti {len(to_insert)} nuovi pacchetti su MongoDB.")

@@ -88,7 +88,7 @@ def get_spark_session():
 
 # Sidebar
 with st.sidebar:
-    st.header("⚙️ Pannello Controllo")
+    st.header("Pannello di controllo")
     auto_refresh = st.checkbox("Auto-refresh Live (2s)", value=False)
     if auto_refresh:
         time.sleep(2)
@@ -101,7 +101,7 @@ with st.sidebar:
         force_spark_reset()
         st.rerun()
     
-    masking = st.toggle("Privacy Mode (Masking)", False)
+    masking = st.toggle("Privacy Mode", False)
 
 # --- FUNZIONE AUDIT LOG ---
 def log_action(user, action, details):
@@ -140,7 +140,7 @@ def block_ip(ip_address):
 
 # --- TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "🏠 Dashboard", 
+    "Homepage", 
     "📚 Catalogo Data Lake", 
     "📊 Analisi (Spark)", 
     "🛰️ Sniffer (Live)", 

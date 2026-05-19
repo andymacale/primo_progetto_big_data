@@ -2,6 +2,7 @@ import streamlit as st
 import time
 import os
 import pandas as pd
+import altair as alt
 
 def render_spark_analysis(m_client, get_spark_session, force_spark_reset, block_ip, log_action):
     st.header("📊 Intelligence Rilevamento Anomalie")
@@ -17,8 +18,16 @@ def render_spark_analysis(m_client, get_spark_session, force_spark_reset, block_
             s_ok = True
         except:
             s_ok = False
-    
-    if s_ok:
+            
+    if not s_ok:
+        st.warning("Spark Master non disponibile o disconnesso.")
+        return
+
+    # Suddivisione in schede interne
+    tab_realtime, tab_profile = st.tabs(["📊 Analisi e Mitigazione Real-time", "⚙️ Profilo Dataset & Pipeline"])
+
+    # ==================== SCHEDA 1: ANALISI & MITIGAZIONE ====================
+    with tab_realtime:
         if st.button("Avvia Analisi Real-time") or st.session_state.get("spark_analysis_run", False):
             st.session_state["spark_analysis_run"] = True
             
@@ -84,14 +93,12 @@ def render_spark_analysis(m_client, get_spark_session, force_spark_reset, block_
                 
                 st.markdown("---")
                 st.subheader("🔍 Correlazione Threat Intelligence (Spark + MongoDB)")
-                st.write("I 5 IP attaccanti più attivi nel Data Lake, incrociati con lo stato reale del Firewall.")
+                st.write("I 5 IP attaccanti più active nel Data Lake, incrociati con lo stato reale del Firewall.")
                 
                 if top_attaccanti is not None and not top_attaccanti.empty:
-                    # Recupera blocklist aggiornata per il confronto (ad ogni rendering)
                     blocked_list = list(m_client["datalake"]["blocked_ips"].find())
                     blocked_ips = set(b['ip'] for b in blocked_list)
                     
-                    # Intestazioni tabella
                     c_h1, c_h2, c_h3, c_h4, c_h5 = st.columns([2, 1, 2, 2, 2])
                     c_h1.markdown("**IP Sospetto**")
                     c_h2.markdown("**Attacchi**")
@@ -130,5 +137,54 @@ def render_spark_analysis(m_client, get_spark_session, force_spark_reset, block_
                     st.info("Nessun IP attaccante rilevato nel dataset.")
             else:
                 st.success("Nessuna anomalia rilevata.")
-    else:
-        st.warning("Spark Master non disponibile o disconnesso.")
+
+    # ==================== SCHEDA 2: PROFILO DATASET & PIPELINE ====================
+    with tab_profile:
+        st.subheader("📊 Rapporto di Bilanciamento del Dataset (Benign vs Attacks)")
+        st.write("Analisi statistica delle classi presenti nel dataset storico di 66 milioni di record.")
+
+        # Pulsante per calcolare o mostrare i dati caricati
+        if st.button("📊 Calcola Bilanciamento Classi (Spark Query)") or "spark_balance" in st.session_state:
+            if "spark_balance" not in st.session_state:
+                with st.spinner("Aggregazione Spark in corso sui 66 milioni di record..."):
+                    try:
+                        parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
+                        df = s_session.read.parquet(parquet_path)
+                        df.createOrReplaceTempView("traffico_nids")
+                        
+                        # Query di conteggio classi
+                        balance_df = s_session.sql("""
+                            SELECT Attack as label, count(*) as occorrenze 
+                            FROM traffico_nids 
+                            GROUP BY Attack
+                        """).toPandas()
+                        
+                        # Calcola percentuali
+                        tot_records = balance_df['occorrenze'].sum()
+                        balance_df['percentuale'] = (balance_df['occorrenze'] / tot_records * 100).round(4)
+                        
+                        st.session_state["spark_balance"] = balance_df
+                        log_action("Admin", "QueryBalance", "Calcolato bilanciamento classi NIDS tramite Spark")
+                    except Exception as e:
+                        st.error(f"Errore durante il calcolo: {e}")
+            
+            balance_df = st.session_state.get("spark_balance")
+            if balance_df is not None and not balance_df.empty:
+                # Grafico Altair
+                chart = alt.Chart(balance_df).mark_bar().encode(
+                    x=alt.X('occorrenze:Q', title='Numero di Record'),
+                    y=alt.Y('label:N', sort='-x', title='Classe Traffico'),
+                    color=alt.Color('label:N', legend=None),
+                    tooltip=['label', 'occorrenze', 'percentuale']
+                ).properties(
+                    height=250,
+                    title="Distribuzione del Traffico (Legittimo vs Vettori d'Attacco)"
+                )
+                st.altair_chart(chart, use_container_width=True)
+                
+                # Tabella Dettagliata
+                st.markdown("**Tabella delle Frequenze:**")
+                st.dataframe(balance_df, use_container_width=True, hide_index=True)
+        else:
+            st.info("Clicca sul pulsante sopra per avviare la query Spark SQL e calcolare la distribuzione delle classi.")
+

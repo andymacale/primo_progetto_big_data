@@ -58,7 +58,7 @@ div[data-testid="stForm"] div[data-testid="stSelectbox"] label {
 }
 
 /* Pulsante Invia Chiedi all'IA (Form Submit) */
-div[data-testid="stForm"] button[data-testid="stFormSubmitButton"] {
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {
     background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%) !important;
     border: none !important;
     border-radius: 20px !important;
@@ -70,7 +70,7 @@ div[data-testid="stForm"] button[data-testid="stFormSubmitButton"] {
     width: 100% !important;
 }
 
-div[data-testid="stForm"] button[data-testid="stFormSubmitButton"]:hover {
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button:hover {
     transform: scale(1.03) !important;
     box-shadow: 0 0 12px rgba(155, 89, 182, 0.4) !important;
     color: #ffffff !important;

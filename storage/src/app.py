@@ -144,7 +144,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Catalogo", 
     "Analisi", 
     "Sniffer", 
-    "Assistente IA (CyberCop)"
+    "Assistente IA"
 ])
 
 with tab1:

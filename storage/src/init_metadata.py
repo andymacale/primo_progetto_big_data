@@ -6,7 +6,6 @@ def init_metadata():
     db = client["datalake"]
     collection = db["metadata_catalog"]
 
-    # Pulizia catalogo esistente
     collection.delete_many({})
 
     metadata = [

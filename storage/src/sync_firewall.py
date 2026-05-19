@@ -10,7 +10,6 @@ try:
     client = MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=5000)
     db = client["datalake"]
     
-    # Recupera tutti gli IP nello stato BLOCKED
     blocked_ips = list(db["blocked_ips"].find({"status": "BLOCKED"}))
     
     if len(blocked_ips) > 0:
@@ -19,10 +18,9 @@ try:
         
         for record in blocked_ips:
             ip = record["ip"]
-            # Invia il comando UDP al firewall daemon su r5
             sock.sendto(f"BLOCK:{ip}".encode("utf-8"), ("10.0.0.1", 5000))
             print(f"[+] Regola ripristinata per l'IP: {ip}")
-            time.sleep(0.1) # Breve pausa per non floodare il demone
+            time.sleep(0.1) 
             
         sock.close()
     else:

@@ -1,12 +1,10 @@
 #!/bin/bash
 
-# Percorso dell'applicazione
 APP_PATH="/app/app.py"
 PORT=80
 
 start_app() {
     echo "Avvio di Streamlit sulla porta $PORT in background..."
-    # Modificato: il log va in /tmp/ (che è scrivibile)
     nohup python3 -m streamlit run /app/app.py --server.port 80 --server.address 0.0.0.0 > /tmp/streamlit.log 2>&1 &
 }
 

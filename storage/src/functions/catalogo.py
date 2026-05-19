@@ -18,22 +18,22 @@ def log_catalogo_action(m_client, user, action, details):
         pass
 
 def validate_and_sanitize_csv(uploaded_file):
-    # 1. Size Check (Max 10MB)
+    # Size Check (Max 10MB)
     if uploaded_file.size > 10 * 1024 * 1024:
         return False, "File troppo grande. Il limite massimo è 10MB."
 
-    # 2. Extension Check
+    # Extension Check
     if not uploaded_file.name.lower().endswith('.csv'):
         return False, "Estensione del file non valida. È consentito solo il formato .csv."
 
-    # 3. Read content
+    # Read content
     try:
         content_bytes = uploaded_file.read()
         uploaded_file.seek(0)  # Reset pointer for future use
     except Exception as e:
         return False, f"Impossibile leggere il file: {e}"
 
-    # 4. Check for binary headers (magic numbers)
+    # Check for binary headers (magic numbers)
     magic_signatures = {
         b'\x7fELF': "Eseguibile ELF (Linux)",
         b'MZ': "Eseguibile PE (Windows)",
@@ -52,7 +52,7 @@ def validate_and_sanitize_csv(uploaded_file):
         if content_bytes.startswith(signature):
             return False, f"Rilevato file binario non autorizzato ({file_type}). Iniezione bloccata!"
 
-    # 5. UTF-8 Validation
+    # UTF-8 Validation
     try:
         content_text = content_bytes.decode('utf-8')
     except UnicodeDecodeError:
@@ -61,7 +61,7 @@ def validate_and_sanitize_csv(uploaded_file):
         except UnicodeDecodeError:
             return False, "Il file contiene caratteri binari non validi (non è testo codificato UTF-8 o Latin-1)."
 
-    # 6. Check if file is actually a script or shell command file
+    # Check if file is actually a script or shell command file
     dangerous_keywords = [
         "#!/bin/bash", "#!/bin/sh", "#!/usr/bin/env python",
         "<script>", "</script>", "<?php", "eval(", "exec(", 
@@ -71,7 +71,7 @@ def validate_and_sanitize_csv(uploaded_file):
         if kw in content_text:
             return False, f"Rilevato codice/script sospetto all'interno del file CSV: '{kw}'. Iniezione bloccata!"
 
-    # 7. Parse and check structure using csv module
+    # Parse and check structure using csv module
     try:
         sample = content_text[:4096]
         # Check if it has a valid delimiter
@@ -96,13 +96,13 @@ def validate_and_sanitize_csv(uploaded_file):
         if col_count == 0:
             return False, "Struttura CSV non valida (nessuna colonna trovata)."
             
-        for i, row in enumerate(rows[:50]):  # Controlla le prime 50 righe
+        for i, row in enumerate(rows[:50]):  
             if len(row) != col_count:
                 return False, f"Inconsistenza nel numero di colonne alla riga {i+1}."
     except Exception as e:
         return False, f"Struttura CSV corrotta o non valida: {e}"
 
-    # 8. Check for CSV Formula Injection
+    # Check for CSV Formula Injection
     dangerous_starts = ('=', '+', '-', '@')
     formula_detected = False
     sanitized_rows = []
@@ -126,9 +126,9 @@ def validate_and_sanitize_csv(uploaded_file):
     }
 
 def render_catalogo(m_client, m_ok):
-    st.header("📚 Catalogo Metadati e Data Governance")
+    st.header("Catalogo")
     if m_ok:
-        search = st.text_input("🔍 Cerca dataset nel Catalogo...", "")
+        search = st.text_input("", placeholder="Cerca dataset nel catalogo...")
         try:
             query = {"$or": [{"name": {"$regex": search, "$options": "i"}}, {"description": {"$regex": search, "$options": "i"}}]} if search else {}
             catalog = list(m_client["datalake"]["metadata_catalog"].find(query))
@@ -140,9 +140,9 @@ def render_catalogo(m_client, m_ok):
                     with col_status:
                         exists = os.path.exists(ds['location']) if "/" in ds['location'] else True
                         if exists:
-                            st.success("● ONLINE")
+                            st.success("Online")
                         else:
-                            st.error("● OFFLINE")
+                            st.error("Offline")
                     
                     c1, c2, c3 = st.columns([2, 1, 1])
                     with c1:
@@ -158,17 +158,15 @@ def render_catalogo(m_client, m_ok):
                         else:
                             st.write(f"**Origine:** {ds['source']}")
                     
-                    with st.expander("Visualizza Schema Tecnico"):
+                    with st.expander("Visualizza schema"):
                         st.dataframe(pd.DataFrame(ds['schema']), use_container_width=True, hide_index=True)
                         
-                    # --- NUOVO ESPANDER: ESPLORA E PROFILA DATASET ---
-                    with st.expander("🔍 Esplora e Profila Dataset"):
+                    with st.expander("Visualizza anteprima"):
                         df_preview = None
                         error_msg = ""
                         
                         try:
                             if ds['id'] == "ds_live_sniffer":
-                                # Recupera gli ultimi 10 record dal database
                                 packets = list(m_client["datalake"]["live_traffic"].find({}, {"_id": 0}).sort("timestamp", -1).limit(10))
                                 if packets:
                                     df_preview = pd.DataFrame(packets)
@@ -220,18 +218,15 @@ def render_catalogo(m_client, m_ok):
                         else:
                             st.info(error_msg or "Impossibile generare l'anteprima.")
                             
-                    # --- NUOVO ESPANDER: CANCELLAZIONE DATASET (CRUD) ---
                     if ds['id'] not in ["ds_historical_nids", "ds_live_sniffer"]:
-                        with st.expander("🗑️ Gestione Metadati (Cancellazione)"):
-                            st.warning("⚠️ **ATTENZIONE**: Questa azione rimuoverà il dataset dal Catalogo dei metadati. Se si tratta di un file caricato, il file fisico verrà rimosso in modo definitivo.")
+                        with st.expander("Gestione Metadati (Cancellazione)"):
+                            st.warning("**ATTENZIONE**: Questa azione rimuoverà il dataset dal Catalogo dei metadati. Se si tratta di un file caricato, il file fisico verrà rimosso in modo definitivo.")
                             
                             confirm_delete = st.checkbox(f"Confermo di voler eliminare il dataset '{ds['name']}'", key=f"del_conf_{ds['id']}")
                             if st.button("Elimina Dataset 🗑️", key=f"del_btn_{ds['id']}", disabled=not confirm_delete):
                                 try:
-                                    # 1. Rimuovi record da MongoDB
                                     m_client["datalake"]["metadata_catalog"].delete_one({"id": ds['id']})
                                     
-                                    # 2. Se file CSV salvato sul disco, rimuovi il file fisico
                                     if ds['format'] == "CSV" and os.path.exists(ds['location']):
                                         os.remove(ds['location'])
                                         
@@ -251,9 +246,8 @@ def render_catalogo(m_client, m_ok):
         except Exception as e:
             st.error(f"Errore catalogo: {e}")
             
-        # Sezione Ingestione Nuovo Dataset CSV
         st.markdown("---")
-        with st.expander("📥 Ingestione e Registrazione Nuovo Dataset (CSV)"):
+        with st.expander("Aggiungi nuovo dataset (CSV)"):
             st.write("Carica un file CSV per validarlo ed inserirlo nel Data Lake con meccanismi di Security by Design.")
             
             with st.form(key="upload_csv_form"):
@@ -266,16 +260,15 @@ def render_catalogo(m_client, m_ok):
                 
             if submit_upload:
                 if not nome_ds.strip() or not desc_ds.strip():
-                    st.warning("⚠️ Nome e Descrizione sono obbligatori.")
+                    st.warning("Nome e Descrizione sono obbligatori.")
                 elif uploaded_file is None:
-                    st.warning("⚠️ Seleziona un file CSV da caricare.")
+                    st.warning("Seleziona un file CSV da caricare.")
                 else:
                     is_valid, result = validate_and_sanitize_csv(uploaded_file)
                     if not is_valid:
-                        st.error(f"🚨 **Blocco Sicurezza (File Injection Rilevata)**: {result}")
+                        st.error(f"**Blocco Sicurezza (File Injection Rilevata)**: {result}")
                         log_catalogo_action(m_client, "Admin", "UploadBlocked", f"File: {uploaded_file.name} - Motivo: {result}")
                     else:
-                        # Salva su disco
                         try:
                             save_dir = "/home/andy/Documenti/primo_progetto_big_data/storage/data/ingested"
                             if not os.path.exists(save_dir):
@@ -288,7 +281,6 @@ def render_catalogo(m_client, m_ok):
                                 writer = csv.writer(f_out, delimiter=result['delimiter'])
                                 writer.writerows(result['rows'])
                                 
-                            # Registra metadati in MongoDB
                             m_client["datalake"]["metadata_catalog"].insert_one({
                                 "id": f"ds_{int(time.time())}",
                                 "name": nome_ds,
@@ -304,12 +296,11 @@ def render_catalogo(m_client, m_ok):
                             log_msg = f"Dataset '{nome_ds}' inserito correttamente. Salvo in {save_filename}."
                             if result['formula_detected']:
                                 log_msg += " (Rilevate e bonificate formule CSV)."
-                                st.warning("⚠️ **Formula Injection Rilevata**: Alcune formule pericolose (es. '=', '+') sono state bonificate con successo.")
+                                st.warning("**Formula Injection Rilevata**: Alcune formule pericolose (es. '=', '+') sono state bonificate con successo.")
                             
-                            st.success(f"✅ Ingestione completata con successo! {log_msg}")
+                            st.success(f"Dataset caricato con successo! {log_msg}")
                             log_catalogo_action(m_client, "Admin", "UploadSuccess", f"Dataset: {nome_ds} - File: {uploaded_file.name} - Formule bonificate: {result['formula_detected']}")
                             
-                            # Rerun per mostrare il nuovo dataset nel catalogo
                             st.rerun()
                         except Exception as e:
                             st.error(f"Errore durante l'ingestione del file: {e}")

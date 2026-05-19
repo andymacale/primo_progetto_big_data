@@ -24,7 +24,7 @@ st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", la
 st.title("Pannello Amministratore Datalake")
 st.markdown(f"Applicazione in esecuzione sul nodo: `{socket.gethostname()}`")
 
-# --- FUNZIONI DI CONNESSIONE ---
+# FUNZIONI DI CONNESSIONE 
 @st.cache_resource
 def get_mongo_client():
     return MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=5000)
@@ -36,7 +36,7 @@ try:
 except:
     m_ok = False
 
-# --- LOGICA ALERT REAL-TIME (Banner globale) ---
+# ALERT REAL-TIME
 if m_ok:
     try:
         ora_limite = time.time() - 60
@@ -48,9 +48,9 @@ if m_ok:
             
             for a in alert_recenti[:1]:  # Mostra solo l'ultimo alert
                 if a['source'] in blocked_ips:
-                    st.warning(f"🛡️ **ATTACCO MITIGATO** — IP `{a['source']}` bloccato automaticamente.\n\n{a['message']}")
+                    st.warning(f" **ATTACCO MITIGATO** — IP `{a['source']}` bloccato .\n\n{a['message']}")
                 else:
-                    st.error(f"🚨 **ATTACCO IN CORSO!** — {a['message']}")
+                    st.error(f" **ATTACCO IN CORSO!** — {a['message']}")
     except:
         pass
 
@@ -103,7 +103,7 @@ with st.sidebar:
     
     masking = st.toggle("Privacy Mode", False)
 
-# --- FUNZIONE AUDIT LOG ---
+# FUNZIONE AUDIT LOG
 def log_action(user, action, details):
     try:
         m_client["datalake"]["audit_logs"].insert_one({
@@ -115,7 +115,7 @@ def log_action(user, action, details):
     except:
         pass
 
-# --- FUNZIONE BLOCCO IP (Risposta Attiva) ---
+# FUNZIONE BLOCCO IP (Risposta Attiva)
 def block_ip(ip_address):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -141,7 +141,7 @@ def block_ip(ip_address):
 # --- TABS ---
 tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
     "Homepage", 
-    "📚 Catalogo Data Lake", 
+    "Catalogo", 
     "📊 Analisi (Spark)", 
     "🛰️ Sniffer (Live)", 
     "🛡️ Governance & Security", 

@@ -34,13 +34,13 @@ def ingest_pcap():
                     continue
                 current_count = len(packets)
                 
-                # Se lo sniffer ha sovrascritto/ruotato il file pcap, resettiamo il contatore
+                # Se lo sniffer ha sovrascritto/ruotato il file pcap, si resetta il contatore
                 if current_count < last_processed_count:
                     last_processed_count = 0
                     print("Rilevata sovrascrittura/rotazione del file PCAP. Contatore resettato.")
                 
                 if current_count > last_processed_count:
-                    # Prendi solo i nuovi pacchetti
+                    # Solo i nuovi pacchetti
                     new_packets = packets[last_processed_count:]
                     to_insert = []
                     
@@ -69,7 +69,7 @@ def ingest_pcap():
                     if to_insert:
                         collection.insert_many(to_insert)
                         
-                        # --- LOGICA DI RILEVAMENTO ALERT LIVE ---
+                        # RILEVAMENTO ALERT LIVE ---
                         alert_coll = db["alerts"]
                         
                         # Carica la blocklist corrente
@@ -84,13 +84,8 @@ def ingest_pcap():
                                 src_ip = p.get("src", "???")
                                 dst_ip = p.get("dst", "???")
                                 
-                                # Cerchiamo pacchetti DIRETTI verso porte critiche
-                                # Formato: "src_ip:src_port > dst_ip:dst_port flags"
-                                # Se la DESTINAZIONE contiene :ftp/:bgp/:ssh, l'attaccante è il SRC
-                                
-                                # Splittiamo il summary per trovare la destinazione
                                 if " > " in summary:
-                                    parte_dst = summary.split(" > ")[1]  # "2.0.0.131:ftp s / padding"
+                                    parte_dst = summary.split(" > ")[1] 
                                     
                                     if ":bgp" in parte_dst or ":179" in parte_dst:
                                         alert_msg = f"POSSIBILE BGP HIJACKING: Tentativo di connessione alla porta 179 del nodo {dst_ip}"

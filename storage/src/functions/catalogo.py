@@ -160,6 +160,87 @@ def render_catalogo(m_client, m_ok):
                     
                     with st.expander("Visualizza Schema Tecnico"):
                         st.dataframe(pd.DataFrame(ds['schema']), use_container_width=True, hide_index=True)
+                        
+                    # --- NUOVO ESPANDER: ESPLORA E PROFILA DATASET ---
+                    with st.expander("🔍 Esplora e Profila Dataset"):
+                        df_preview = None
+                        error_msg = ""
+                        
+                        try:
+                            if ds['id'] == "ds_live_sniffer":
+                                # Recupera gli ultimi 10 record dal database
+                                packets = list(m_client["datalake"]["live_traffic"].find({}, {"_id": 0}).sort("timestamp", -1).limit(10))
+                                if packets:
+                                    df_preview = pd.DataFrame(packets)
+                                else:
+                                    error_msg = "Nessun pacchetto ancora catturato nel database."
+                            elif ds['format'] == "PARQUET":
+                                import pyarrow.dataset as py_ds
+                                if os.path.exists(ds['location']):
+                                    dataset = py_ds.dataset(ds['location'], format='parquet')
+                                    batch_iter = dataset.to_batches()
+                                    first_batch = next(batch_iter, None)
+                                    if first_batch:
+                                        df_preview = first_batch.to_pandas().head(10)
+                                    else:
+                                        error_msg = "Il file Parquet è vuoto."
+                                else:
+                                    error_msg = f"File non trovato nel percorso: {ds['location']}"
+                            elif ds['format'] == "CSV":
+                                if os.path.exists(ds['location']):
+                                    df_preview = pd.read_csv(ds['location'], nrows=10)
+                                else:
+                                    error_msg = f"File non trovato nel percorso: {ds['location']}"
+                            else:
+                                error_msg = f"Formato '{ds['format']}' non supportato per l'anteprima."
+                        except Exception as ex:
+                            error_msg = f"Errore durante l'anteprima: {ex}"
+                            
+                        if df_preview is not None:
+                            st.write("**Anteprima Dati (Prime 10 righe):**")
+                            st.dataframe(df_preview, use_container_width=True)
+                            
+                            st.write("**Statistiche Profilazione:**")
+                            col_info, col_desc = st.columns([1, 1])
+                            with col_info:
+                                st.markdown(f"**Colonne totali:** `{len(df_preview.columns)}`")
+                                st.markdown("**Tipi di Dato Rilevati:**")
+                                dtypes_df = pd.DataFrame({
+                                    "Colonna": df_preview.columns,
+                                    "Tipo di Dato": [str(t) for t in df_preview.dtypes]
+                                })
+                                st.dataframe(dtypes_df, use_container_width=True, hide_index=True)
+                            with col_desc:
+                                numeric_cols = df_preview.select_dtypes(include=['number']).columns
+                                if len(numeric_cols) > 0:
+                                    st.markdown("**Statistiche Colonne Numeriche (Preview):**")
+                                    st.dataframe(df_preview[numeric_cols].describe().T, use_container_width=True)
+                                else:
+                                    st.info("Nessuna colonna numerica rilevata nella preview per le statistiche descrittive.")
+                        else:
+                            st.info(error_msg or "Impossibile generare l'anteprima.")
+                            
+                    # --- NUOVO ESPANDER: CANCELLAZIONE DATASET (CRUD) ---
+                    if ds['id'] not in ["ds_historical_nids", "ds_live_sniffer"]:
+                        with st.expander("🗑️ Gestione Metadati (Cancellazione)"):
+                            st.warning("⚠️ **ATTENZIONE**: Questa azione rimuoverà il dataset dal Catalogo dei metadati. Se si tratta di un file caricato, il file fisico verrà rimosso in modo definitivo.")
+                            
+                            confirm_delete = st.checkbox(f"Confermo di voler eliminare il dataset '{ds['name']}'", key=f"del_conf_{ds['id']}")
+                            if st.button("Elimina Dataset 🗑️", key=f"del_btn_{ds['id']}", disabled=not confirm_delete):
+                                try:
+                                    # 1. Rimuovi record da MongoDB
+                                    m_client["datalake"]["metadata_catalog"].delete_one({"id": ds['id']})
+                                    
+                                    # 2. Se file CSV salvato sul disco, rimuovi il file fisico
+                                    if ds['format'] == "CSV" and os.path.exists(ds['location']):
+                                        os.remove(ds['location'])
+                                        
+                                    log_catalogo_action(m_client, "Admin", "DeleteDataset", f"Dataset '{ds['name']}' (ID: {ds['id']}) rimosso correttamente.")
+                                    st.success(f"Dataset '{ds['name']}' eliminato con successo!")
+                                    time.sleep(1)
+                                    st.rerun()
+                                except Exception as delete_err:
+                                    st.error(f"Errore durante l'eliminazione: {delete_err}")
                     
                     last_update = ds['created_at']
                     if ds['id'] == "ds_live_sniffer":

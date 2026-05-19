@@ -126,7 +126,6 @@ def validate_and_sanitize_csv(uploaded_file):
     }
 
 def render_catalogo(m_client, m_ok):
-    st.header("Catalogo")
     if m_ok:
         search = st.text_input("", placeholder="Cerca dataset nel catalogo...")
         try:

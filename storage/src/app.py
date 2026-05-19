@@ -15,8 +15,8 @@ from functions import homepage
 from functions import catalogo
 from functions import spark_analysis
 from functions import live_sniffer
-from functions import security_governance
 from functions import ai_copilot
+
 
 # Configurazione Pagina
 st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", layout="wide")
@@ -139,13 +139,12 @@ def block_ip(ip_address):
         return False
 
 # --- TABS ---
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Homepage", 
     "Catalogo", 
-    "📊 Analisi (Spark)", 
-    "🛰️ Sniffer (Live)", 
-    "🛡️ Governance & Security", 
-    "🤖 Assistente IA (CyberCop)"
+    "Analisi", 
+    "Sniffer", 
+    "Assistente IA (CyberCop)"
 ])
 
 with tab1:
@@ -155,13 +154,10 @@ with tab2:
     catalogo.render_catalogo(m_client, m_ok)
 
 with tab3:
-    spark_analysis.render_spark_analysis(m_client, get_spark_session, force_spark_reset, block_ip, log_action)
+    spark_analysis.render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action)
 
 with tab4:
     live_sniffer.render_live_sniffer(m_client, masking)
 
 with tab5:
-    security_governance.render_security_governance(m_client, m_ok, log_action, block_ip)
-
-with tab6:
     ai_copilot.render_ai_copilot(m_client, m_ok, log_action)

@@ -152,11 +152,15 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                         df = s_session.read.parquet(parquet_path)
                         df.createOrReplaceTempView("traffico_nids")
                         
-                        balance_df = s_session.sql("""
-                            select Attack as label, count(*) as occorrenze 
-                            from traffico_nids 
-                            group by Attack
-                        """).toPandas()
+                        
+                        current_dir = os.path.dirname(__file__)
+                        src_dir = os.path.dirname(current_dir)
+                        sql_path = os.path.join(src_dir, "analytics", "queries", "bilanciamento.sql")
+                        
+                        with open(sql_path, "r", encoding="utf-8") as sf:
+                            sql_query = sf.read()
+                            
+                        balance_df = s_session.sql(sql_query).toPandas()
                         
                         tot_records = balance_df['occorrenze'].sum()
                         balance_df['percentuale'] = (balance_df['occorrenze'] / tot_records * 100).round(4)
@@ -169,8 +173,8 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             balance_df = st.session_state.get("spark_balance")
             if balance_df is not None and not balance_df.empty:
                 chart = alt.Chart(balance_df).mark_bar().encode(
-                    x=alt.X('occorrenze:Q', title='Numero di Record'),
-                    y=alt.Y('label:N', sort='-x', title='Classe Traffico'),
+                    x=alt.X('occorrenze:Q', title='Numero di record'),
+                    y=alt.Y('label:N', sort='-x', title='Tipo di traffico'),
                     color=alt.Color('label:N', legend=None),
                     tooltip=['label', 'occorrenze', 'percentuale']
                 ).properties(
@@ -228,8 +232,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
         st.markdown("---")
         
         st.subheader("Tracciabilità")
-        if st.button("Aggiorna log", key="btn_refresh_audit"):
-            st.rerun()
         if m_ok:
             try:
                 logs = list(m_client["datalake"]["audit_logs"].find().sort("timestamp", -1).limit(10))
@@ -241,3 +243,5 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                     st.info("Nessun log registrato.")
             except:
                 st.error("Errore Audit Log")
+        if st.button("Aggiorna", key="btn_refresh_audit"):
+            st.rerun()

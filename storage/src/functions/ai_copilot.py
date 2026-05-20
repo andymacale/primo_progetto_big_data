@@ -52,7 +52,7 @@ def clean_llm_text(text: str) -> str:
         cleaned = pattern.sub(rep, cleaned)
     return cleaned
 
-def render_ai_copilot(m_client, m_ok, log_action):
+def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     st.header("Assistente IA")
     st.write("Interroga le IA ospitate nel nodo `llm` del Data Center.")
     
@@ -178,6 +178,50 @@ def render_ai_copilot(m_client, m_ok, log_action):
     css_style += "</style>"
     st.markdown(css_style, unsafe_allow_html=True)
 
+    # Recupero dinamico dei modelli da MongoDB e/o Spark
+    models_list = []
+    source_used = "Codice locale (Fallback)"
+    
+    if m_ok:
+        try:
+            db = m_client["datalake"]
+            # Popola la collezione se è vuota o non esiste
+            if "llm_models" not in db.list_collection_names() or db["llm_models"].count_documents({}) == 0:
+                default_models = [
+                    {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen", "description": "Risposte istantanee", "order": 1},
+                    {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek", "description": "Fase di pensiero approfondito", "order": 2},
+                    {"id": "gemma2:2b", "name": "Google Gemma 2 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 3}
+                ]
+                db["llm_models"].insert_many(default_models)
+            
+            models_list = list(db["llm_models"].find().sort("order", 1))
+            source_used = "MongoDB (Metadata Store)"
+        except Exception as e:
+            pass
+
+    if get_spark_session:
+        try:
+            s_session = get_spark_session()
+            spark_df = s_session.read.format("mongodb")\
+                .option("database", "datalake")\
+                .option("collection", "llm_models")\
+                .load()
+            models_list_spark = [row.asDict() for row in spark_df.orderBy("order").collect()]
+            if models_list_spark:
+                models_list = models_list_spark
+                source_used = "Apache Spark (Distributed Collection)"
+        except Exception as e:
+            pass
+
+    if not models_list:
+        models_list = [
+            {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen"},
+            {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek"},
+            {"id": "gemma2:2b", "name": "Google Gemma 2 (Bilanciato)", "type": "gemma"}
+        ]
+        
+    model_names = [m["name"] for m in models_list]
+
     # Inizializzazione session state per la generazione e persistenza dati
     if "generating" not in st.session_state:
         st.session_state["generating"] = False
@@ -187,8 +231,8 @@ def render_ai_copilot(m_client, m_ok, log_action):
         st.session_state["last_answer"] = ""
     if "last_thinking" not in st.session_state:
         st.session_state["last_thinking"] = ""
-    if "selected_model" not in st.session_state:
-        st.session_state["selected_model"] = "Qwen 2.5 (Veloce)"
+    if "selected_model" not in st.session_state or st.session_state["selected_model"] not in model_names:
+        st.session_state["selected_model"] = model_names[0] if model_names else "Qwen 2.5 (Veloce)"
     if "last_total_time" not in st.session_state:
         st.session_state["last_total_time"] = 0.0
     if "last_thinking_time" not in st.session_state:
@@ -222,8 +266,8 @@ def render_ai_copilot(m_client, m_ok, log_action):
         with col_model:
             st.selectbox(
                 "Scegli modello:",
-                ["Qwen 2.5 (Veloce)", "DeepSeek R1 (Ragionamento)"],
-                index=0 if st.session_state["selected_model"] == "Qwen 2.5 (Veloce)" else 1,
+                model_names,
+                index=model_names.index(st.session_state["selected_model"]) if st.session_state["selected_model"] in model_names else 0,
                 label_visibility="collapsed",
                 disabled=True
             )
@@ -255,17 +299,25 @@ def render_ai_copilot(m_client, m_ok, log_action):
         with col_model:
             modello_scelto = st.selectbox(
                 "Scegli modello:",
-                ["Qwen 2.5 (Veloce)", "DeepSeek R1 (Ragionamento)"],
-                index=0 if st.session_state["selected_model"] == "Qwen 2.5 (Veloce)" else 1,
+                model_names,
+                index=model_names.index(st.session_state["selected_model"]) if st.session_state["selected_model"] in model_names else 0,
                 label_visibility="collapsed"
             )
             st.session_state["selected_model"] = modello_scelto
+            st.caption(f"Configurazione modelli caricata dinamicamente da: `{source_used}`")
 
     # Determinazione del modello selezionato
-    model_id = "qwen2.5:0.5b"
-    if "DeepSeek" in st.session_state["selected_model"]:
-        model_id = "deepseek-r1:1.5b"
-    is_qwen = "qwen" in model_id
+    selected_model_doc = next((m for m in models_list if m["name"] == st.session_state["selected_model"]), None)
+    if selected_model_doc:
+        model_id = selected_model_doc["id"]
+        model_type = selected_model_doc["type"]
+    else:
+        model_id = "qwen2.5:0.5b"
+        model_type = "qwen"
+        
+    is_qwen = model_type == "qwen"
+    is_deepseek = model_type == "deepseek"
+    is_gemma = model_type == "gemma"
 
     # Blocchi di output persistenti
     thinking_area = st.empty()
@@ -276,7 +328,7 @@ def render_ai_copilot(m_client, m_ok, log_action):
     # Mostra la risposta precedente se presente e non stiamo generando
     if not st.session_state["generating"] and st.session_state.get("last_answer"):
         # Mostra il ragionamento solo per DeepSeek se presente
-        if not is_qwen and st.session_state.get("last_thinking"):
+        if is_deepseek and st.session_state.get("last_thinking"):
             cleaned_think = clean_llm_text(st.session_state["last_thinking"])
             last_think = st.session_state.get("last_thinking_time", 0.0)
             expander_title = f"Ragionato in {last_think:.2f}''" if last_think > 0 else "Ragionamento"
@@ -390,7 +442,7 @@ Domanda dell'utente: {prompt}"""
                                 elapsed = time.time() - start_time
                                 
                                 # Calcolo del tempo di ragionamento dinamico per DeepSeek
-                                if not is_qwen and thinking_token:
+                                if is_deepseek and thinking_token:
                                     thinking_duration = time.time() - start_time
                                     
                                 # Visualizzazione del Timer e Statistiche in tempo reale (solo Tempo Totale)
@@ -399,16 +451,16 @@ Domanda dell'utente: {prompt}"""
                                     unsafe_allow_html=True
                                 )
                                 
-                                if is_qwen:
+                                if is_qwen or is_gemma:
                                     clean_answer += response_token
-                                else:
+                                else: # deepseek
                                     if thinking_token:
                                         thinking_text += thinking_token
                                     if response_token:
                                         clean_answer += response_token
                                 
                                 # Visualizzazione del ragionamento (solo DeepSeek)
-                                if not is_qwen and thinking_text:
+                                if is_deepseek and thinking_text:
                                     cleaned_thinking = clean_llm_text(thinking_text)
                                     exp_title = f"Ragionamento in corso: {thinking_duration:.2f}''" if 'thinking_duration' in locals() and thinking_duration > 0 else "Ragionamento in corso..."
                                     thinking_area.markdown(

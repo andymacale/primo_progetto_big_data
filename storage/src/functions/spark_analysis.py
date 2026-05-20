@@ -35,9 +35,13 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             if "spark_risultati" not in st.session_state or "spark_top_attaccanti" not in st.session_state:
                 try:
                     parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
-                    query_path = "/app/analytics/queries/rilevamento_anomalie.sql"
+                    
+                    current_dir = os.path.dirname(__file__)
+                    src_dir = os.path.dirname(current_dir)
+                    
+                    query_path = os.path.join(src_dir, "analytics", "queries", "rilevamento_anomalie.sql")
                     if not os.path.exists(query_path):
-                        query_path = "analytics/queries/rilevamento_anomalie.sql"
+                        query_path = "/app/analytics/queries/rilevamento_anomalie.sql"
                     
                     with st.spinner("Elaborazione in corso..."):
                         t_start = time.time()
@@ -50,9 +54,9 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                         risultati = s_session.sql(query_sql).toPandas()
                         
                         # Query 2: Top Attaccanti Malevoli
-                        query_top_path = "/app/analytics/queries/top_attaccanti.sql"
+                        query_top_path = os.path.join(src_dir, "analytics", "queries", "top_attaccanti.sql")
                         if not os.path.exists(query_top_path):
-                            query_top_path = "analytics/queries/top_attaccanti.sql"
+                            query_top_path = "/app/analytics/queries/top_attaccanti.sql"
                             
                         with open(query_top_path, 'r') as f:
                             query_top_sql = f.read()

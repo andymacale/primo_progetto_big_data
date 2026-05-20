@@ -171,6 +171,12 @@ def render_catalogo(m_client, m_ok):
                                     df_preview = pd.DataFrame(packets)
                                 else:
                                     error_msg = "Nessun pacchetto ancora catturato nel database."
+                            elif ds['id'] == "ds_llm_models":
+                                models = list(m_client["datalake"]["llm_models"].find({}, {"_id": 0}).sort("order", 1))
+                                if models:
+                                    df_preview = pd.DataFrame(models)
+                                else:
+                                    error_msg = "Nessun modello configurato nel database."
                             elif ds['format'] == "PARQUET":
                                 import pyarrow.dataset as py_ds
                                 if os.path.exists(ds['location']):
@@ -217,7 +223,7 @@ def render_catalogo(m_client, m_ok):
                         else:
                             st.info(error_msg or "Impossibile generare l'anteprima.")
                             
-                    if ds['id'] not in ["ds_historical_nids", "ds_live_sniffer"]:
+                    if ds['id'] not in ["ds_historical_nids", "ds_live_sniffer", "ds_llm_models"]:
                         with st.expander("Gestione Metadati (Cancellazione)"):
                             st.warning("**ATTENZIONE**: Questa azione rimuoverà il dataset dal Catalogo dei metadati. Se si tratta di un file caricato, il file fisico verrà rimosso in modo definitivo.")
                             

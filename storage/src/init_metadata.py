@@ -39,6 +39,23 @@ def init_metadata():
                 {"name": "Destinazione", "type": "IP Address", "description": "Indirizzo IP di destinazione"},
                 {"name": "Protocollo", "type": "String", "description": "Protocollo di rete (TCP/UDP/ARP)"}
             ]
+        },
+        {
+            "id": "ds_llm_models",
+            "name": "Catalogo Modelli LLM",
+            "description": "Catalogo dei modelli linguistici (LLM) ospitati nel nodo llm. Contiene l'elenco dei modelli configurati per l'assistente IA.",
+            "source": "Ollama Registry & Local Storage",
+            "format": "MongoDB Collection",
+            "location": "mongodb://mongo.cyber.net:27017/datalake.llm_models",
+            "category": "Artificial Intelligence / Config",
+            "created_at": datetime.datetime.now(),
+            "schema": [
+                {"name": "id", "type": "String", "description": "Identificativo univoco del modello per Ollama"},
+                {"name": "name", "type": "String", "description": "Nome visualizzato per il modello nella UI"},
+                {"name": "type", "type": "String", "description": "Tipo di modello per la logica di streaming (qwen/deepseek/gemma)"},
+                {"name": "description", "type": "String", "description": "Descrizione sintetica del modello"},
+                {"name": "order", "type": "Integer", "description": "Ordinamento di visualizzazione nel menu"}
+            ]
         }
     ]
 

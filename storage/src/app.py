@@ -160,4 +160,4 @@ with tab4:
     live_sniffer.render_live_sniffer(m_client, masking)
 
 with tab5:
-    ai_copilot.render_ai_copilot(m_client, m_ok, log_action)
+    ai_copilot.render_ai_copilot(m_client, m_ok, log_action, get_spark_session)

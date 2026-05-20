@@ -137,7 +137,10 @@ def render_catalogo(m_client, m_ok):
                     with col_title:
                         st.subheader(f"Dataset: {ds['name']}")
                     with col_status:
-                        exists = os.path.exists(ds['location']) if "/" in ds['location'] else True
+                        if ds.get('format') == "MongoDB Collection" or ds.get('location', '').startswith("mongodb://"):
+                            exists = m_ok
+                        else:
+                            exists = os.path.exists(ds['location']) if "/" in ds['location'] else True
                         if exists:
                             st.success("Online")
                         else:
@@ -228,7 +231,7 @@ def render_catalogo(m_client, m_ok):
                             st.warning("**ATTENZIONE**: Questa azione rimuoverà il dataset dal Catalogo dei metadati. Se si tratta di un file caricato, il file fisico verrà rimosso in modo definitivo.")
                             
                             confirm_delete = st.checkbox(f"Confermo di voler eliminare il dataset '{ds['name']}'", key=f"del_conf_{ds['id']}")
-                            if st.button("Elimina Dataset 🗑️", key=f"del_btn_{ds['id']}", disabled=not confirm_delete):
+                            if st.button("Elimina Dataset", key=f"del_btn_{ds['id']}", disabled=not confirm_delete):
                                 try:
                                     m_client["datalake"]["metadata_catalog"].delete_one({"id": ds['id']})
                                     

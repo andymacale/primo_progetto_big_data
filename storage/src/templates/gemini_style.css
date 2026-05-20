@@ -57,21 +57,47 @@ div[data-testid="stForm"] div[data-testid="stSelectbox"] label {
     display: none !important;
 }
 
-/* Pulsante Invia Chiedi all'IA (Form Submit) */
-div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {
-    background: linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%) !important;
-    border: none !important;
-    border-radius: 20px !important;
-    color: #ffffff !important;
-    font-weight: 600 !important;
-    height: 38px !important;
-    padding: 0px 24px !important;
-    transition: all 0.2s ease-in-out !important;
+/* Centra verticalmente gli elementi all'interno del form/barra di ricerca */
+div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {
+    align-items: center !important;
+    gap: 0px !important;
+}
+
+/* Allinea a destra la colonna/pulsante di sottomissione */
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] {
+    display: flex !important;
+    justify-content: flex-end !important;
     width: 100% !important;
 }
 
+/* Struttura base dei pulsanti stile icona */
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0px !important;
+    margin: 0px 0px 0px auto !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 50% !important;
+    transition: transform 0.1s ease-in-out, background-color 0.1s !important;
+    background-image: var(--btn-bg-img) !important;
+    background-size: var(--btn-bg-size, 24px 24px) !important;
+    background-repeat: no-repeat !important;
+    background-position: center !important;
+    color: transparent !important;
+}
+
+div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button * {
+    display: none !important;
+}
+
 div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button:hover {
-    transform: scale(1.03) !important;
-    box-shadow: 0 0 12px rgba(155, 89, 182, 0.4) !important;
-    color: #ffffff !important;
+    transform: scale(1.1) !important;
+    background-color: rgba(255, 255, 255, 0.1) !important;
 }

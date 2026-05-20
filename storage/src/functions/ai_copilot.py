@@ -6,51 +6,7 @@ import re
 import os
 import datetime
 
-def clean_llm_text(text: str) -> str:
-    replacements = {
-        "incalabrinamento": "anomalia di instradamento",
-        "incalabrinamenti": "anomalie di instradamento",
-        "spettoso": "sospetto",
-        "spettosa": "sospetta",
-        "spettosi": "sospetti",
-        "spettose": "sospette",
-        "behinderini": "ostacoli",
-        "behinderin": "ostacolo",
-        "behinderina": "ostacolo",
-        "protatteno": "protetto",
-        "protatteni": "protetti",
-        "impieghiati": "impiegati",
-        "seguentiatione": "segmentazione",
-        "buonuo": "buongiorno",
-        "buonuso": "buongiorno",
-        "bonacci": "buongiorno",
-        "Ferretti le Firewalls": "Rafforza i firewall",
-        "ferretti le firewalls": "rafforza i firewall",
-        "funne": "funziona",
-        "丰富的zza": "ricchezza",
-        "iutrecenti": "i recenti",
-        "lutrecenti": "i recenti",
-        "incassatura": "iniezione",
-        "incassature": "iniezioni",
-        "alerti": "allarmi",
-        "sameframe": "sistema",
-        "nel data del": "in data",
-        "nel data": "in data",
-        "related": "correlati",
-        "sulles": "sui",
-        "quest'è": "questa è",
-        "auto scanning": "scansione automatica",
-        "auto-scanning": "scansione automatica",
-        "state": "stato",
-        "evidendeci": "evidenziando",
-        "evidendesi": "evidenziandosi",
-        "evidende": "evidenzia"
-    }
-    cleaned = text
-    for word, rep in replacements.items():
-        pattern = re.compile(re.escape(word), re.IGNORECASE)
-        cleaned = pattern.sub(rep, cleaned)
-    return cleaned
+
 
 def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     st.header("Assistente IA")
@@ -100,83 +56,26 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     send_b64 = get_base64_image(play_path)
     stop_b64 = get_base64_image(stop_path)
 
-    # Iniezione dello stile CSS personalizzato per le icone
-    css_style = """
-    <style>
-    /* Centra verticalmente gli elementi all'interno del form/barra di ricerca */
-    div[data-testid="stForm"] div[data-testid="stHorizontalBlock"] {
-        align-items: center !important;
-        gap: 0px !important;
-    }
-    
-    /* Input di testo a larghezza piena e senza margini superflui */
-    div[data-testid="stForm"] div[data-testid="stTextInput"] {
-        width: 100% !important;
-        margin-bottom: 0px !important;
-    }
-
-    /* Allinea a destra la colonna/pulsante di sottomissione */
-    div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] {
-        display: flex !important;
-        justify-content: flex-end !important;
-        width: 100% !important;
-    }
-
-    /* Struttura base dei pulsanti stile icona */
-    div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {
-        background-color: transparent !important;
-        border: none !important;
-        box-shadow: none !important;
-        padding: 0px !important;
-        margin: 0px 0px 0px auto !important;
-        width: 40px !important;
-        height: 40px !important;
-        min-width: 40px !important;
-        cursor: pointer !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border-radius: 50% !important;
-        transition: transform 0.1s ease-in-out, background-color 0.1s !important;
-    }
-
-    div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button:hover {
-        transform: scale(1.1) !important;
-        background-color: rgba(255, 255, 255, 0.1) !important;
-    }
-    """
-
+    # Iniezione dello stile CSS per lo sfondo dell'icona (pulsante Invia/Ferma) usando variabili CSS
+    bg_img = ""
+    bg_size = "24px 24px"
     if st.session_state.get("generating", False):
         if stop_b64:
-            css_style += f"""
-            div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {{
-                background-image: url('{stop_b64}') !important;
-                background-size: 60px 60px !important;
-                background-repeat: no-repeat !important;
-                background-position: center !important;
-                color: transparent !important;
-            }}
-            div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button * {{
-                display: none !important;
-            }}
-            """
+            bg_img = f"url('{stop_b64}')"
+            bg_size = "60px 60px"
     else:
         if send_b64:
-            css_style += f"""
-            div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button {{
-                background-image: url('{send_b64}') !important;
-                background-size: 24px 24px !important;
-                background-repeat: no-repeat !important;
-                background-position: center !important;
-                color: transparent !important;
-            }}
-            div[data-testid="stForm"] div[data-testid="stFormSubmitButton"] button * {{
-                display: none !important;
-            }}
-            """
-
-    css_style += "</style>"
-    st.markdown(css_style, unsafe_allow_html=True)
+            bg_img = f"url('{send_b64}')"
+            bg_size = "24px 24px"
+            
+    st.markdown(f"""
+        <style>
+        :root {{
+            --btn-bg-img: {bg_img};
+            --btn-bg-size: {bg_size};
+        }}
+        </style>
+    """, unsafe_allow_html=True)
 
     # Recupero dinamico dei modelli da MongoDB e/o Spark
     models_list = []
@@ -278,7 +177,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
             with col_input:
                 prompt_utente = st.text_input(
                     "Chiedi",
-                    placeholder="Chiedi all'assistente IA(es. 'Quali IP ho bloccato nel firewall?')...",
+                    placeholder="Chiedi all'assistente IA (es. 'Quali IP ho bloccato nel firewall?')...",
                     label_visibility="collapsed"
                 )
             with col_submit:
@@ -329,14 +228,14 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     if not st.session_state["generating"] and st.session_state.get("last_answer"):
         # Mostra il ragionamento solo per DeepSeek se presente
         if is_deepseek and st.session_state.get("last_thinking"):
-            cleaned_think = clean_llm_text(st.session_state["last_thinking"])
+            cleaned_think = st.session_state["last_thinking"]
             last_think = st.session_state.get("last_thinking_time", 0.0)
             expander_title = f"Ragionato in {last_think:.2f}''" if last_think > 0 else "Ragionamento"
             with thinking_area:
                 with st.expander(expander_title, expanded=False):
                     st.markdown(f"<div style='background-color:#1e1e24; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8;'>{cleaned_think}</div>", unsafe_allow_html=True)
 
-        cleaned_ans = clean_llm_text(st.session_state["last_answer"])
+        cleaned_ans = st.session_state["last_answer"]
         answer_title.markdown("### Risposta:")
         answer_area.markdown(cleaned_ans)
 
@@ -461,7 +360,7 @@ Domanda dell'utente: {prompt}"""
                                 
                                 # Visualizzazione del ragionamento (solo DeepSeek)
                                 if is_deepseek and thinking_text:
-                                    cleaned_thinking = clean_llm_text(thinking_text)
+                                    cleaned_thinking = thinking_text
                                     exp_title = f"Ragionamento in corso: {thinking_duration:.2f}''" if 'thinking_duration' in locals() and thinking_duration > 0 else "Ragionamento in corso..."
                                     thinking_area.markdown(
                                         f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8; margin-bottom:15px;'>"
@@ -473,9 +372,8 @@ Domanda dell'utente: {prompt}"""
                                 
                                 # Visualizzazione della risposta finale
                                 if clean_answer:
-                                    cleaned_answer = clean_llm_text(clean_answer)
                                     answer_title.markdown("### Risposta:")
-                                    answer_area.markdown(cleaned_answer)
+                                    answer_area.markdown(clean_answer)
                                     
                         # Registra l'azione nel log di sicurezza al termine
                         log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")

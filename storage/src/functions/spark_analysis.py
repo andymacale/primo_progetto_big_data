@@ -48,12 +48,10 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                         df = s_session.read.parquet(parquet_path)
                         df.createOrReplaceTempView("traffico_nids")
                         
-                        # Query 1: Rilevamento Anomalie Generale
                         with open(query_path, 'r') as f:
                             query_sql = f.read()
                         risultati = s_session.sql(query_sql).toPandas()
                         
-                        # Query 2: Top Attaccanti Malevoli
                         query_top_path = os.path.join(src_dir, "analytics", "queries", "top_attaccanti.sql")
                         if not os.path.exists(query_top_path):
                             query_top_path = "/app/analytics/queries/top_attaccanti.sql"
@@ -80,7 +78,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             if risultati is not None and not risultati.empty:
                 st.success(f"Analisi completata in {exec_time}\'\'")
                 
-                # Layout metriche
                 m1, m2 = st.columns(2)
                 with m1:
                     st.metric("Flussi totali analizzati", "66,355,798")
@@ -94,7 +91,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                 st.markdown("---")
                 st.markdown("### Dettaglio flussi anomali ed azioni correttive")
                 
-                # Lista IP bloccati per evitare pulsanti di blocco ridondanti
                 blocked_ips = []
                 if m_ok:
                     try:
@@ -108,7 +104,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                     pacchetti = row['occorrenze']
                     classe = row['classe']
                     is_blocked = ip in blocked_ips
-
                     
                     with st.container(border=True):
                         c_ip, c_cnt, c_lbl, c_status, c_act = st.columns([2, 1.5, 2, 1.5, 1.5])
@@ -146,7 +141,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             st.line_chart(perf_data.set_index('Volume (Mln Record)'))
             st.caption("Confronto: Spark Cluster vs Database Relazionale Singolo")
 
-
     with tab_profile:
         if st.button("Avvia calcolo") or "spark_balance" in st.session_state:
             if "spark_balance" not in st.session_state:
@@ -155,7 +149,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                         parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
                         df = s_session.read.parquet(parquet_path)
                         df.createOrReplaceTempView("traffico_nids")
-                        
                         
                         current_dir = os.path.dirname(__file__)
                         src_dir = os.path.dirname(current_dir)
@@ -189,8 +182,6 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                 
                 st.markdown("**Tabella delle frequenze:**")
                 st.dataframe(balance_df, use_container_width=True, hide_index=True)
-        
-
 
     with tab_sec:
         st.subheader("Minacce rilevate")

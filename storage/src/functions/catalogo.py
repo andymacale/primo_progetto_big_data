@@ -18,22 +18,18 @@ def log_catalogo_action(m_client, user, action, details):
         pass
 
 def validate_and_sanitize_csv(uploaded_file):
-    # Size Check (Max 10MB)
     if uploaded_file.size > 10 * 1024 * 1024:
         return False, "File troppo grande. Il limite massimo è 10MB."
 
-    # Extension Check
     if not uploaded_file.name.lower().endswith('.csv'):
         return False, "Estensione del file non valida. È consentito solo il formato .csv."
 
-    # Read content
     try:
         content_bytes = uploaded_file.read()
-        uploaded_file.seek(0)  # Reset pointer for future use
+        uploaded_file.seek(0)
     except Exception as e:
         return False, f"Impossibile leggere il file: {e}"
 
-    # Check for binary headers (magic numbers)
     magic_signatures = {
         b'\x7fELF': "Eseguibile ELF (Linux)",
         b'MZ': "Eseguibile PE (Windows)",
@@ -52,7 +48,6 @@ def validate_and_sanitize_csv(uploaded_file):
         if content_bytes.startswith(signature):
             return False, f"Rilevato file binario non autorizzato ({file_type}). Iniezione bloccata!"
 
-    # UTF-8 Validation
     try:
         content_text = content_bytes.decode('utf-8')
     except UnicodeDecodeError:
@@ -61,7 +56,6 @@ def validate_and_sanitize_csv(uploaded_file):
         except UnicodeDecodeError:
             return False, "Il file contiene caratteri binari non validi (non è testo codificato UTF-8 o Latin-1)."
 
-    # Check if file is actually a script or shell command file
     dangerous_keywords = [
         "#!/bin/bash", "#!/bin/sh", "#!/usr/bin/env python",
         "<script>", "</script>", "<?php", "eval(", "exec(", 
@@ -71,10 +65,8 @@ def validate_and_sanitize_csv(uploaded_file):
         if kw in content_text:
             return False, f"Rilevato codice/script sospetto all'interno del file CSV: '{kw}'. Iniezione bloccata!"
 
-    # Parse and check structure using csv module
     try:
         sample = content_text[:4096]
-        # Check if it has a valid delimiter
         try:
             dialect = csv.Sniffer().sniff(sample)
             delimiter = dialect.delimiter
@@ -91,7 +83,6 @@ def validate_and_sanitize_csv(uploaded_file):
         if not rows:
             return False, "Il file CSV è vuoto."
         
-        # Check consistency of columns
         col_count = len(rows[0])
         if col_count == 0:
             return False, "Struttura CSV non valida (nessuna colonna trovata)."
@@ -102,7 +93,6 @@ def validate_and_sanitize_csv(uploaded_file):
     except Exception as e:
         return False, f"Struttura CSV corrotta o non valida: {e}"
 
-    # Check for CSV Formula Injection
     dangerous_starts = ('=', '+', '-', '@')
     formula_detected = False
     sanitized_rows = []
@@ -113,7 +103,6 @@ def validate_and_sanitize_csv(uploaded_file):
             cell_str = str(cell).strip()
             if cell_str.startswith(dangerous_starts):
                 formula_detected = True
-                # Neutralizzazione: prepending single quote
                 cell_str = "'" + cell_str
             sanitized_row.append(cell_str)
         sanitized_rows.append(sanitized_row)
@@ -264,7 +253,7 @@ def render_catalogo(m_client, m_ok):
                 cat_ds = st.selectbox("Categoria", ["Traffico Rete", "Audit Logs", "Threat Intelligence", "Anagrafiche", "Altro"])
                 uploaded_file = st.file_uploader("Seleziona File CSV", type=["csv"])
                 
-                submit_upload = st.form_submit_button("Valida e Ingerisci Dataset ➔")
+                submit_upload = st.form_submit_button("Carica")
                 
             if submit_upload:
                 if not nome_ds.strip() or not desc_ds.strip():
@@ -299,7 +288,7 @@ def render_catalogo(m_client, m_ok):
                                 "source": f"Uploaded File ({uploaded_file.name})",
                                 "schema": [{"col_name": col, "type": "String"} for col in result['columns']],
                                 "created_at": datetime.datetime.now()
-                            })
+                             })
                             
                             log_msg = f"Dataset '{nome_ds}' inserito correttamente. Salvo in {save_filename}."
                             if result['formula_detected']:

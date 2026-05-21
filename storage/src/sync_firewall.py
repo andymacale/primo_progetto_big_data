@@ -6,7 +6,6 @@ from pymongo import MongoClient
 print("[*] Sincronizzazione regole Firewall da MongoDB al Gateway r5...")
 
 try:
-    # Connessione a MongoDB
     client = MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=5000)
     db = client["datalake"]
     

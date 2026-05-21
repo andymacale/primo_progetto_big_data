@@ -18,7 +18,6 @@ while True:
             target_ip = msg.split(":")[1]
             print(f"[!] Ricevuto comando di blocco per l'IP a livello di rete: {target_ip}")
             
-            # Esegue il comando iptables per bloccare il transito (FORWARD)
             cmd_forward = [
                 "iptables", "-A", "FORWARD", 
                 "-s", target_ip, 
@@ -26,7 +25,6 @@ while True:
                 "--reject-with", "icmp-port-unreachable"
             ]
             
-            # Esegue il comando iptables per bloccare l'accesso al router (INPUT)
             cmd_input = [
                 "iptables", "-A", "INPUT", 
                 "-s", target_ip, 

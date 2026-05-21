@@ -17,14 +17,11 @@ from functions import spark_analysis
 from functions import live_sniffer
 from functions import ai_copilot
 
-
-# Configurazione Pagina
 st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", layout="wide")
 
 st.title("Pannello Amministratore Datalake")
 st.markdown(f"Applicazione in esecuzione sul nodo: `{socket.gethostname()}`")
 
-# FUNZIONI DI CONNESSIONE 
 @st.cache_resource
 def get_mongo_client():
     return MongoClient("mongodb://mongo.cyber.net:27017/", serverSelectionTimeoutMS=5000)
@@ -36,7 +33,6 @@ try:
 except:
     m_ok = False
 
-# ALERT REAL-TIME
 if m_ok:
     try:
         ora_limite = time.time() - 60
@@ -46,7 +42,7 @@ if m_ok:
             blocked = list(m_client["datalake"]["blocked_ips"].find())
             blocked_ips = set(b['ip'] for b in blocked)
             
-            for a in alert_recenti[:1]:  # Mostra solo l'ultimo alert
+            for a in alert_recenti[:1]:
                 if a['source'] in blocked_ips:
                     st.warning(f" **ATTACCO MITIGATO** — IP `{a['source']}` bloccato .\n\n{a['message']}")
                 else:
@@ -86,15 +82,12 @@ def get_spark_session():
         .config("spark.jars", ",".join(jars)) \
         .getOrCreate()
 
-# Sidebar
 with st.sidebar:
     st.header("Pannello di controllo")
     auto_refresh = st.checkbox("Auto-refresh Live (2s)", value=False)
     if auto_refresh:
         time.sleep(2)
         st.rerun()
-    
-
     
     st.header("Gestione Sessioni")
     if st.button("Hard Reset Spark"):
@@ -103,7 +96,6 @@ with st.sidebar:
     
     masking = st.toggle("Privacy Mode", False)
 
-# FUNZIONE AUDIT LOG
 def log_action(user, action, details):
     try:
         m_client["datalake"]["audit_logs"].insert_one({
@@ -115,7 +107,6 @@ def log_action(user, action, details):
     except:
         pass
 
-# FUNZIONE BLOCCO IP (Risposta Attiva)
 def block_ip(ip_address):
     try:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -138,7 +129,6 @@ def block_ip(ip_address):
         log_action("NIDS", "BlockIP-FAILED", f"Errore: {str(e)}")
         return False
 
-# --- TABS ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "Homepage", 
     "Catalogo", 

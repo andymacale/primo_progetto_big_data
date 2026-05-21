@@ -5,14 +5,39 @@ import time
 import re
 import os
 import datetime
+import base64
+import streamlit.components.v1 as components
 
-
+def load_prompt_file(model_type):
+    current_dir = os.path.dirname(__file__)
+    src_dir = os.path.dirname(current_dir)
+    prompt_dir = os.path.join(src_dir, "prompts")
+    file_path = os.path.join(prompt_dir, f"{model_type}.txt")
+    
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content:
+                    return content
+        except:
+            pass
+            
+    if model_type == "deepseek":
+        return (
+            "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center.\n"
+            "IMPORTANTE: Devi rispondere SEMPRE in lingua ITALIANA corretta e naturale.\n"
+            "Evita traduzioni letterali (es. NON tradurre 'good call' con 'buon appello')."
+        )
+    elif model_type == "gemma":
+        return "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center. Rispondi sempre in italiano corretto e naturale."
+    else:
+        return "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center. Rispondi sempre in italiano."
 
 def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     st.header("Assistente IA")
     st.write("Interroga le IA ospitate nel nodo `llm` del Data Center.")
     
-    # Carica lo stile CSS dal file esterno o relativo
     current_dir = os.path.dirname(__file__)
     src_dir = os.path.dirname(current_dir)
     css_path = os.path.join(src_dir, "templates", "gemini_style.css")
@@ -24,9 +49,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     if os.path.exists(css_path):
         with open(css_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-    import base64
-    import streamlit.components.v1 as components
 
     def get_base64_image(path):
         if os.path.exists(path):
@@ -40,7 +62,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 pass
         return None
 
-    # Percorsi per le icone personalizzate cercate dall'utente
     play_path = os.path.join(src_dir, "templates", "img", "play.webp")
     if not os.path.exists(play_path):
         play_path = "/app/templates/img/play.webp"
@@ -56,7 +77,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     send_b64 = get_base64_image(play_path)
     stop_b64 = get_base64_image(stop_path)
 
-    # Iniezione dello stile CSS per lo sfondo dell'icona (pulsante Invia/Ferma) usando variabili CSS
     bg_img = ""
     bg_size = "24px 24px"
     if st.session_state.get("generating", False):
@@ -77,19 +97,17 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
         </style>
     """, unsafe_allow_html=True)
 
-    # Recupero dinamico dei modelli da MongoDB e/o Spark
     models_list = []
     source_used = "Codice locale (Fallback)"
     
     if m_ok:
         try:
             db = m_client["datalake"]
-            # Popola la collezione se è vuota o non esiste
             if "llm_models" not in db.list_collection_names() or db["llm_models"].count_documents({}) == 0:
                 default_models = [
                     {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen", "description": "Risposte istantanee", "order": 1},
                     {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek", "description": "Fase di pensiero approfondito", "order": 2},
-                    {"id": "gemma2:2b", "name": "Google Gemma 2 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 3}
+                    {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 3}
                 ]
                 db["llm_models"].insert_many(default_models)
             
@@ -116,12 +134,11 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
         models_list = [
             {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen"},
             {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek"},
-            {"id": "gemma2:2b", "name": "Google Gemma 2 (Bilanciato)", "type": "gemma"}
+            {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma"}
         ]
         
     model_names = [m["name"] for m in models_list]
 
-    # Inizializzazione session state per la generazione e persistenza dati
     if "generating" not in st.session_state:
         st.session_state["generating"] = False
     if "current_prompt" not in st.session_state:
@@ -137,14 +154,11 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     if "last_thinking_time" not in st.session_state:
         st.session_state["last_thinking_time"] = 0.0
 
-
-    # Creazione della Chat Input Pill con sostituzione dinamica del pulsante Invia/Ferma
     prompt_utente = ""
     submit_clicked = False
 
     if st.session_state["generating"]:
         with st.form(key="gemini_stop_form", border=False):
-            # Riga 1: Input disabilitato e pulsante Ferma allineato in alto
             col_input, col_submit = st.columns([11, 1])
             with col_input:
                 st.text_input(
@@ -160,7 +174,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 st.session_state["generating"] = False
                 st.rerun()
                 
-        # Riga 2: Selezione modello sotto l'input (fuori dal form per reattività)
         col_model, _ = st.columns([4.5, 7.5])
         with col_model:
             st.selectbox(
@@ -172,7 +185,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
             )
     else:
         with st.form(key="gemini_chat_form", border=False):
-            # Riga 1: Input abilitato e pulsante Invia allineato in alto
             col_input, col_submit = st.columns([11, 1])
             with col_input:
                 prompt_utente = st.text_input(
@@ -193,7 +205,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 st.session_state["last_thinking_time"] = 0.0
                 st.rerun()
                 
-        # Riga 2: Selezione modello sotto l'input (fuori dal form per reattività)
         col_model, _ = st.columns([4.5, 7.5])
         with col_model:
             modello_scelto = st.selectbox(
@@ -205,7 +216,6 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
             st.session_state["selected_model"] = modello_scelto
             st.caption(f"Configurazione modelli caricata dinamicamente da: `{source_used}`")
 
-    # Determinazione del modello selezionato
     selected_model_doc = next((m for m in models_list if m["name"] == st.session_state["selected_model"]), None)
     if selected_model_doc:
         model_id = selected_model_doc["id"]
@@ -218,28 +228,25 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     is_deepseek = model_type == "deepseek"
     is_gemma = model_type == "gemma"
 
-    # Blocchi di output persistenti
+    system_instructions = load_prompt_file(model_type)
+    st.caption(f"Prompt di sistema caricato da: `prompts/{model_type}.txt`")
+
     thinking_area = st.empty()
     answer_title = st.empty()
     answer_area = st.empty()
     timer_area = st.empty()
 
-    # Mostra la risposta precedente se presente e non stiamo generando
     if not st.session_state["generating"] and st.session_state.get("last_answer"):
-        # Mostra il ragionamento solo per DeepSeek se presente
         if is_deepseek and st.session_state.get("last_thinking"):
-            cleaned_think = st.session_state["last_thinking"]
             last_think = st.session_state.get("last_thinking_time", 0.0)
             expander_title = f"Ragionato in {last_think:.2f}''" if last_think > 0 else "Ragionamento"
             with thinking_area:
                 with st.expander(expander_title, expanded=False):
-                    st.markdown(f"<div style='background-color:#1e1e24; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8;'>{cleaned_think}</div>", unsafe_allow_html=True)
+                    st.markdown(f"<div style='background-color:#1e1e24; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8;'>{st.session_state['last_thinking']}</div>", unsafe_allow_html=True)
 
-        cleaned_ans = st.session_state["last_answer"]
         answer_title.markdown("### Risposta:")
-        answer_area.markdown(cleaned_ans)
+        answer_area.markdown(st.session_state["last_answer"])
 
-        # Mostra il tempo totale dell'ultima esecuzione sotto la risposta
         last_tot = st.session_state.get("last_total_time", 0.0)
         if last_tot > 0:
             timer_area.markdown(
@@ -247,11 +254,9 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 unsafe_allow_html=True
             )
 
-    # Esecuzione della generazione (se attiva)
     if st.session_state["generating"]:
         prompt = st.session_state["current_prompt"]
         
-        # --- RICONOSCIMENTO DELLE CONVERSAZIONI GENERICHE / SALUTI ---
         p_lower = prompt.strip().lower()
         security_keywords = [
             "ip", "block", "bloccat", "firewall", "attacc", "alert", "allarm", 
@@ -265,15 +270,11 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
 
         if is_generic:
             prompt_completo = f"Rispondi in lingua italiana: {prompt}"
-            system_instructions = "Rispondi sempre in lingua italiana in modo cortese, naturale e conciso. Rispondi cordialmente ai saluti."
         else:
-            # --- RAG: Ingestione dinamica dello stato di MongoDB ---
             contesto_sicurezza = ""
             if m_ok:
                 try:
-                    # Estrae i top 5 IP bloccati al momento
                     blocked_ips = list(m_client["datalake"]["blocked_ips"].find({"status": "BLOCKED"}).limit(5))
-                    # Estrae gli ultimi 5 allarmi registrati
                     alerts = list(m_client["datalake"]["alerts"].find().sort("timestamp", -1).limit(5))
                     
                     contesto_sicurezza += "\n[CONTESTO REALE DEL DATA CENTER - DA MONGO DB]\n"
@@ -301,17 +302,10 @@ Usa questi dati reali del Data Center per rispondere alla domanda dell'utente se
 
 Domanda dell'utente: {prompt}"""
 
-            system_instructions = (
-                "Sei un esperto di sicurezza informatica per il Data Center. "
-                "Rispondi sempre in italiano corretto, chiaro e professionale. "
-                "Usa termini appropriati (segmentazione, impiegati, interrogazione, orario)."
-            )
-
         with st.spinner("Elaborazione in corso..."):
             try:
                 start_time = time.time()
                 thinking_duration = 0.0
-                # Chiamata in streaming al container llm locale su VNI 300
                 with requests.post(
                     "http://2.0.0.226:11434/api/generate",
                     json={
@@ -321,7 +315,7 @@ Domanda dell'utente: {prompt}"""
                         "options": {
                             "temperature": 0.3,
                             "top_p": 0.85,
-                            "num_predict": 800
+                            "num_predict": 2048
                         },
                         "stream": True
                     },
@@ -340,11 +334,9 @@ Domanda dell'utente: {prompt}"""
                                 thinking_token = chunk.get("thinking", "")
                                 elapsed = time.time() - start_time
                                 
-                                # Calcolo del tempo di ragionamento dinamico per DeepSeek
                                 if is_deepseek and thinking_token:
                                     thinking_duration = time.time() - start_time
                                     
-                                # Visualizzazione del Timer e Statistiche in tempo reale (solo Tempo Totale)
                                 timer_area.markdown(
                                     f"<div style='font-size:12px; opacity:0.8; margin-top:5px; text-align:right;'>Tempo totale: <strong>{elapsed:.2f}''</strong></div>",
                                     unsafe_allow_html=True
@@ -352,30 +344,26 @@ Domanda dell'utente: {prompt}"""
                                 
                                 if is_qwen or is_gemma:
                                     clean_answer += response_token
-                                else: # deepseek
+                                else:
                                     if thinking_token:
                                         thinking_text += thinking_token
                                     if response_token:
                                         clean_answer += response_token
                                 
-                                # Visualizzazione del ragionamento (solo DeepSeek)
                                 if is_deepseek and thinking_text:
-                                    cleaned_thinking = thinking_text
                                     exp_title = f"Ragionamento in corso: {thinking_duration:.2f}''" if 'thinking_duration' in locals() and thinking_duration > 0 else "Ragionamento in corso..."
                                     thinking_area.markdown(
-                                        f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8; margin-bottom:15px;'>"
+                                        f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8; margin-bottom:15px;'> "
                                         f"<div style='font-weight:bold; margin-bottom:5px; font-size:12px; opacity:0.8;'>{exp_title}</div>"
-                                        f"{cleaned_thinking}"
+                                        f"{thinking_text}"
                                         f"</div>",
                                         unsafe_allow_html=True
                                     )
                                 
-                                # Visualizzazione della risposta finale
                                 if clean_answer:
                                     answer_title.markdown("### Risposta:")
                                     answer_area.markdown(clean_answer)
                                     
-                        # Registra l'azione nel log di sicurezza al termine
                         log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")
                     else:
                         st.error(f"Errore di comunicazione con il server LLM: Stato {response.status_code}")
@@ -390,6 +378,5 @@ Domanda dell'utente: {prompt}"""
                     st.session_state["last_total_time"] = elapsed
                 if 'thinking_duration' in locals() and thinking_duration:
                     st.session_state["last_thinking_time"] = thinking_duration
-                # Ripristina lo stato al termine della generazione
                 st.session_state["generating"] = False
                 st.rerun()

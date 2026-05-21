@@ -52,7 +52,6 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             except Exception as e:
                 st.caption("AI Copilot")
             
-            # Check Ollama connection status
             try:
                 s_ollama = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s_ollama.settimeout(1.0)
@@ -84,12 +83,9 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
                     
     st.markdown("---")
 
-    
-    # --- METRICHE E RISORSE ---
     st.subheader("Statistiche di ingestione e risorse")
     kpi1, kpi2, kpi3, kpi4 = st.columns(4)
     
-    # Stato Database
     with kpi1:
         with st.container(border=True):
             st.markdown("### Datalake (MongoDB)")
@@ -102,7 +98,6 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             else:
                 st.metric("Log di Audit Totali", "N/D")
                 
-    # Stato Sicurezza
     with kpi2:
         with st.container(border=True):
             st.markdown("### Sicurezza (Firewall)")
@@ -115,7 +110,6 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             else:
                 st.metric("IP Bloccati (Firewall)", "N/D")
                 
-    # Stato Cluster di Calcolo
     with kpi3:
         with st.container(border=True):
             st.markdown("### Analytics (Spark)")
@@ -124,7 +118,6 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             else:
                 st.metric("Stato Cluster", "Sconnesso")
                 
-    # Stato Sniffer Live
     with kpi4:
         with st.container(border=True):
             st.markdown("### Traffico (Sniffer)")
@@ -136,5 +129,3 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
                     st.caption(f"Dettaglio: {e}")
             else:
                 st.metric("Pacchetti Sniffati", "N/D")
-
-    

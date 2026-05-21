@@ -43,9 +43,9 @@ def render_live_sniffer(m_client, masking):
         pcap_path = "/catture/analisi_traffico.pcap"
         if os.path.exists(pcap_path) and os.path.getsize(pcap_path) > 0:
             with open(pcap_path, "rb") as f:
-                st.download_button("Download", f, "analisi.pcap", "application/octet-stream", use_container_width=True)
+                st.download_button("Scarica", f, "analisi.pcap", "application/octet-stream", use_container_width=True)
         else:
-            st.button("Download", disabled=True, use_container_width=True)
+            st.button("Scarica", disabled=True, use_container_width=True)
 
     with col_s3:
         st.info("Per analisi dettagliata, scarica il file ed aprilo con Wireshark")

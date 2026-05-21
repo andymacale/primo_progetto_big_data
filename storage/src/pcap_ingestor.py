@@ -8,7 +8,6 @@ def ingest_pcap():
     client = MongoClient("mongodb://mongo.cyber.net:27017/")
     db = client["datalake"]
     
-    # Inizializza/Converti la collezione 'live_traffic' a Capped Collection (max 5000 pacchetti, 10MB)
     try:
         if "live_traffic" not in db.list_collection_names():
             db.create_collection("live_traffic", capped=True, size=10 * 1024 * 1024, max=5000)
@@ -34,13 +33,11 @@ def ingest_pcap():
                     continue
                 current_count = len(packets)
                 
-                # Se lo sniffer ha sovrascritto/ruotato il file pcap, si resetta il contatore
                 if current_count < last_processed_count:
                     last_processed_count = 0
                     print("Rilevata sovrascrittura/rotazione del file PCAP. Contatore resettato.")
                 
                 if current_count > last_processed_count:
-                    # Solo i nuovi pacchetti
                     new_packets = packets[last_processed_count:]
                     to_insert = []
                     
@@ -69,10 +66,7 @@ def ingest_pcap():
                     if to_insert:
                         collection.insert_many(to_insert)
                         
-                        # RILEVAMENTO ALERT LIVE ---
                         alert_coll = db["alerts"]
-                        
-                        # Carica la blocklist corrente
                         blocked_ips = set(b['ip'] for b in db["blocked_ips"].find())
                         
                         for p in to_insert:

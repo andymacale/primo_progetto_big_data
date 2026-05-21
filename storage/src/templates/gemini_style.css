@@ -6,7 +6,7 @@ div[data-testid="stForm"] {
     border: 1px solid rgba(128, 128, 128, 0.2) !important;
     border-radius: 28px !important;
     padding: 12px 24px !important;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.1) !important;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.1) !important;
     margin-bottom: 12px !important;
     display: flex !important;
     flex-direction: column !important;
@@ -15,7 +15,7 @@ div[data-testid="stForm"] {
 
 /* Rendi trasparente e privo di bordi l'input element ed i suoi contenitori intermedi baseweb */
 div[data-testid="stForm"] div[data-testid="stTextInput"] div[data-baseweb="input"],
-div[data-testid="stForm"] div[data-testid="stTextInput"] div[data-baseweb="input"] > div {
+div[data-testid="stForm"] div[data-testid="stTextInput"] div[data-baseweb="input"]>div {
     background-color: transparent !important;
     border: none !important;
     box-shadow: none !important;

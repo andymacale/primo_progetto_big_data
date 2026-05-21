@@ -14,7 +14,7 @@ from functions import ai_copilot
 st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", layout="wide")
 
 st.title("Pannello Amministratore Datalake")
-st.markdown(f"Applicazione in esecuzione sul nodo: `admin`")
+st.markdown(f"Applicazione in esecuzione sul nodo: `{socket.gethostname()}`")
 
 @st.cache_resource
 def get_mongo_client():

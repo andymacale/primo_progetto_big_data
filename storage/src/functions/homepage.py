@@ -54,7 +54,7 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             try:
                 s_ollama = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s_ollama.settimeout(2.0)
-                s_ollama.connect(("localhost", 11434))
+                s_ollama.connect(("llm.cyber.net", 11434))
                 s_ollama.close()
                 st.success("Online")
             except Exception as e:

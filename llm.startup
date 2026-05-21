@@ -11,7 +11,11 @@ echo "export LANGUAGE=it_IT:it" >> /root/.bashrc
 
 # VNI 300 — LAN T
 ip address add 2.0.0.226/27 dev eth0
-ip route add default via 2.0.0.225 dev eth0
+# llm è in modalità bridged, quindi mantiene il default route di Docker su eth1 per il port forwarding.
+# Aggiungiamo rotte specifiche per far raggiungere le reti interne del Data Center (Admin, AS1, AS3 ecc.)
+ip route add 10.0.0.0/8 via 2.0.0.225 dev eth0
+ip route add 192.168.0.0/16 via 2.0.0.225 dev eth0
+ip route add 1.0.0.0/8 via 2.0.0.225 dev eth0
 echo "nameserver 10.1.0.2" > /etc/resolv.conf
 
 # Avvio Ollama server in background

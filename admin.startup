@@ -11,7 +11,13 @@ echo "export LANGUAGE=it_IT:it" >> /root/.bashrc
 
 ln -sf /usr/share/zoneinfo/Europe/Rome /etc/localtime
 ip address add 10.0.0.2/16 dev eth0
-ip route add default via 10.0.0.1 dev eth0
+# Poichè admin è in bridged mode per esporre la porta 8080, Docker fornisce una rotta di default.
+# Dobbiamo inserire rotte specifiche per far comunicare admin con le reti del lab tramite r5 (10.0.0.1)
+ip route add 10.0.0.0/8 via 10.0.0.1 dev eth0
+ip route add 2.0.0.0/8 via 10.0.0.1 dev eth0
+ip route add 192.168.0.0/16 via 10.0.0.1 dev eth0
+ip route add 1.0.0.0/8 via 10.0.0.1 dev eth0
+ip route add 100.0.0.0/8 via 10.0.0.1 dev eth0
 
 # Risoluzione nomi per i servizi del Data Lake
 echo "2.0.0.194 spark-master" >> /etc/hosts

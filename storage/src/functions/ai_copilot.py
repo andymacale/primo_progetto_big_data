@@ -91,9 +91,8 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
             db = m_client["datalake"]
             if "llm_models" not in db.list_collection_names() or db["llm_models"].count_documents({}) == 0:
                 default_models = [
-                    {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen", "description": "Risposte istantanee", "order": 1},
-                    {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek", "description": "Fase di pensiero approfondito", "order": 2},
-                    {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 3}
+                    {"id": "qwen3.5:9b", "name": "Qwen 3.5 (Ragionamento)", "type": "qwen", "description": "Fase di pensiero approfondito", "order": 1},
+                    {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 2}
                 ]
                 db["llm_models"].insert_many(default_models)
             
@@ -118,8 +117,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
 
     if not models_list:
         models_list = [
-            {"id": "qwen2.5:0.5b", "name": "Qwen 2.5 (Veloce)", "type": "qwen"},
-            {"id": "deepseek-r1:1.5b", "name": "DeepSeek R1 (Ragionamento)", "type": "deepseek"},
+            {"id": "qwen3.5:9b", "name": "Qwen 3.5 (Ragionamento)", "type": "qwen"},
             {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma"}
         ]
         
@@ -134,7 +132,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     if "last_thinking" not in st.session_state:
         st.session_state["last_thinking"] = ""
     if "selected_model" not in st.session_state or st.session_state["selected_model"] not in model_names:
-        st.session_state["selected_model"] = model_names[0] if model_names else "Qwen 2.5 (Veloce)"
+        st.session_state["selected_model"] = model_names[0] if model_names else "Qwen 3.5 (Ragionamento)"
     if "last_total_time" not in st.session_state:
         st.session_state["last_total_time"] = 0.0
     if "last_thinking_time" not in st.session_state:
@@ -207,7 +205,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
         model_id = selected_model_doc["id"]
         model_type = selected_model_doc["type"]
     else:
-        model_id = "qwen2.5:0.5b"
+        model_id = "qwen3.5:9b"
         model_type = "qwen"
         
     is_qwen = model_type == "qwen"
@@ -226,7 +224,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     timer_area = st.empty()
 
     if not st.session_state["generating"] and st.session_state.get("last_answer"):
-        if is_deepseek and st.session_state.get("last_thinking"):
+        if st.session_state.get("last_thinking"):
             last_think = st.session_state.get("last_thinking_time", 0.0)
             expander_title = f"Ragionato in {last_think:.2f}''" if last_think > 0 else "Ragionamento"
             with thinking_area:
@@ -296,7 +294,7 @@ Domanda dell'utente: {prompt}"""
                 start_time = time.time()
                 thinking_duration = 0.0
                 with requests.post(
-                    "http://localhost:11434/api/generate",
+                    "http://llm.cyber.net:11434/api/generate",
                     json={
                         "model": model_id,
                         "prompt": prompt_completo,
@@ -315,6 +313,7 @@ Domanda dell'utente: {prompt}"""
                     if response.status_code == 200:
                         thinking_text = ""
                         clean_answer = ""
+                        raw_stream = ""
                         
                         for line in response.iter_lines():
                             if line:
@@ -323,35 +322,44 @@ Domanda dell'utente: {prompt}"""
                                 thinking_token = chunk.get("thinking", "")
                                 elapsed = time.time() - start_time
                                 
-                                if is_deepseek and thinking_token:
-                                    thinking_duration = time.time() - start_time
-                                    
+                                if thinking_token:
+                                    thinking_duration = elapsed
+                                    thinking_text += thinking_token
+                                    clean_answer += response_token
+                                else:
+                                    raw_stream += response_token
+                                    if "<think>" in raw_stream:
+                                        thinking_duration = elapsed
+                                        import re
+                                        # Estrarre il testo tra <think> e </think> o fine stringa
+                                        t_match = re.search(r'<think>(.*?)(?:</think>|$)', raw_stream, re.DOTALL)
+                                        if t_match:
+                                            thinking_text = t_match.group(1)
+                                        # La clean_answer è il raw_stream senza il blocco <think>...</think>
+                                        c_answer = re.sub(r'<think>.*?(?:</think>|$)', '', raw_stream, flags=re.DOTALL)
+                                        clean_answer = c_answer
+                                    else:
+                                        clean_answer = raw_stream
+                                        
                                 timer_area.markdown(
                                     f"<div style='font-size:12px; opacity:0.8; margin-top:5px; text-align:right;'>Tempo totale: <strong>{elapsed:.2f}''</strong></div>",
                                     unsafe_allow_html=True
                                 )
                                 
-                                if is_qwen or is_gemma:
-                                    clean_answer += response_token
-                                else:
-                                    if thinking_token:
-                                        thinking_text += thinking_token
-                                    if response_token:
-                                        clean_answer += response_token
-                                
-                                if is_deepseek and thinking_text:
+                                if thinking_text:
                                     exp_title = f"Ragionamento in corso: {thinking_duration:.2f}''" if 'thinking_duration' in locals() and thinking_duration > 0 else "Ragionamento in corso..."
                                     thinking_area.markdown(
                                         f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8; margin-bottom:15px;'> "
                                         f"<div style='font-weight:bold; margin-bottom:5px; font-size:12px; opacity:0.8;'>{exp_title}</div>"
-                                        f"{thinking_text}"
+                                        f"{thinking_text.strip()}"
                                         f"</div>",
                                         unsafe_allow_html=True
                                     )
                                 
-                                if clean_answer:
+                                if clean_answer.strip():
                                     answer_title.markdown("### Risposta:")
-                                    answer_area.markdown(clean_answer)
+                                    answer_area.markdown(clean_answer.strip())
+                                    
                                     
                         log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")
                     else:

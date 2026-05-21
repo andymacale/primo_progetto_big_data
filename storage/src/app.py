@@ -1,14 +1,8 @@
 import streamlit as st
 from pymongo import MongoClient
 import socket
-import pandas as pd
-import os
-import subprocess
 import time
 import datetime
-import requests
-import json
-import re
 from pyspark.sql import SparkSession
 from pyspark import SparkContext
 from functions import homepage
@@ -20,7 +14,7 @@ from functions import ai_copilot
 st.set_page_config(page_title="Dashboard Big Data - Admin", page_icon="📊", layout="wide")
 
 st.title("Pannello Amministratore Datalake")
-st.markdown(f"Applicazione in esecuzione sul nodo: `{socket.gethostname()}`")
+st.markdown(f"Applicazione in esecuzione sul nodo: `admin`")
 
 @st.cache_resource
 def get_mongo_client():

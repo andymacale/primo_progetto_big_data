@@ -9,7 +9,7 @@ def run_sql_analytics():
     try:
         spark = SparkSession.builder \
             .appName("DataLake_Ingestion") \
-            .master("spark://spark.cyber.net:7077") \
+            .master("spark://localhost:7077") \
             .config("spark.hadoop.fs.permissions.umask-mode", "000") \
             .config("spark.speculation", "false") \
             .getOrCreate()

@@ -1,7 +1,6 @@
 import streamlit as st
 import socket
 import time
-import datetime
 from PIL import Image
 
 def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):    
@@ -54,8 +53,8 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
             
             try:
                 s_ollama = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s_ollama.settimeout(1.0)
-                s_ollama.connect(("2.0.0.226", 11434))
+                s_ollama.settimeout(2.0)
+                s_ollama.connect(("localhost", 11434))
                 s_ollama.close()
                 st.success("Online")
             except Exception as e:

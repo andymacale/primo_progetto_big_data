@@ -2,11 +2,8 @@ import streamlit as st
 import requests
 import json
 import time
-import re
 import os
-import datetime
 import base64
-import streamlit.components.v1 as components
 
 def load_prompt_file(model_type):
     current_dir = os.path.dirname(__file__)
@@ -218,7 +215,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     is_gemma = model_type == "gemma"
 
     system_instructions = load_prompt_file(model_type)
-    if system_instructions
+    if system_instructions:
         st.caption(f"Prompt di sistema caricato da: `prompts/{model_type}.txt`")
     else:
         st.error("Prompt di sistema non caricato")
@@ -299,7 +296,7 @@ Domanda dell'utente: {prompt}"""
                 start_time = time.time()
                 thinking_duration = 0.0
                 with requests.post(
-                    "http://2.0.0.226:11434/api/generate",
+                    "http://localhost:11434/api/generate",
                     json={
                         "model": model_id,
                         "prompt": prompt_completo,
@@ -360,7 +357,7 @@ Domanda dell'utente: {prompt}"""
                     else:
                         st.error(f"Errore di comunicazione con il server LLM: Stato {response.status_code}")
             except Exception as e:
-                st.error(f"Impossibile connettersi al container LLM a http://2.0.0.226:11434. Dettaglio: {e}")
+                st.error(f"Impossibile connettersi al server LLM a http://localhost:11434. Dettaglio: {e}")
             finally:
                 if 'clean_answer' in locals() and clean_answer:
                     st.session_state["last_answer"] = clean_answer

@@ -7,7 +7,9 @@ services:
     volumes:
       - mongodb_data:/data/db
     networks:
-      - datalake-net
+      datalake-net:
+        aliases:
+          - mongo.cyber.net
 
   spark-master:
     image: apache/spark:3.5.1-scala2.12-java11-ubuntu
@@ -22,11 +24,11 @@ services:
       - SPARK_MASTER_PORT=7077
       - SPARK_MASTER_WEBUI_PORT=8080
     ports:
-      - "8080:8080"
+      - "8081:8080"
       - "7077:7077"
     volumes:
-      - ./data:/opt/spark/data
-      - ./src:/opt/spark/src
+      - ../storage/data:/opt/spark/data
+      - ../storage/src:/opt/spark/src
     networks:
       - datalake-net
 
@@ -45,11 +47,26 @@ services:
     depends_on:
       - spark-master
     volumes:
-      - ./data:/opt/spark/data
-      - ./src:/opt/spark/src
+      - ../storage/data:/opt/spark/data
+      - ../storage/src:/opt/spark/src
     networks:
       - datalake-net
-
+  streamlit:
+    build:
+      context: ./build_admin
+    container_name: datalake-streamlit
+    # Con network_mode host il container condivide la rete dell'host:
+    # - vede direttamente 2.0.0.226:11434 (Ollama su Kathará)
+    # - la porta 8080 è già esposta sull'host (accedere via http://localhost:8080)
+    network_mode: host
+    volumes:
+      - ../storage/src:/app
+      - ../storage/data:/opt/spark/data
+      - ../catture:/catture
+    working_dir: /app
+    command: streamlit run app.py --server.port 8080 --server.address 0.0.0.0
+    depends_on:
+      - mongodb
 volumes:
   mongodb_data:
 

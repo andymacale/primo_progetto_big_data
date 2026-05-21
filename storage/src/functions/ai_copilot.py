@@ -21,18 +21,7 @@ def load_prompt_file(model_type):
                 if content:
                     return content
         except:
-            pass
-            
-    if model_type == "deepseek":
-        return (
-            "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center.\n"
-            "IMPORTANTE: Devi rispondere SEMPRE in lingua ITALIANA corretta e naturale.\n"
-            "Evita traduzioni letterali (es. NON tradurre 'good call' con 'buon appello')."
-        )
-    elif model_type == "gemma":
-        return "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center. Rispondi sempre in italiano corretto e naturale."
-    else:
-        return "Sei CyberCop, un assistente virtuale esperto di sicurezza informatica per il Data Center. Rispondi sempre in italiano."
+            return None
 
 def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     st.header("Assistente IA")
@@ -229,7 +218,10 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     is_gemma = model_type == "gemma"
 
     system_instructions = load_prompt_file(model_type)
-    st.caption(f"Prompt di sistema caricato da: `prompts/{model_type}.txt`")
+    if system_instructions
+        st.caption(f"Prompt di sistema caricato da: `prompts/{model_type}.txt`")
+    else:
+        st.error("Prompt di sistema non caricato")
 
     thinking_area = st.empty()
     answer_title = st.empty()

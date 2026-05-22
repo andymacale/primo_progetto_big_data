@@ -11,7 +11,7 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
         with st.container(border=True):
             try:
                 mongo = Image.open("/app/templates/img/mongodb.png")
-                st.image(mongo, use_container_width=True)
+                st.image(mongo, width="stretch")
             except Exception as e:
                 st.error(f"Errore caricamento MongoDB: {e}")
             if m_ok:
@@ -23,7 +23,7 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
         with st.container(border=True):
             try:
                 spark = Image.open("/app/templates/img/spark.webp")
-                st.image(spark, use_container_width=True)
+                st.image(spark, width="stretch")
             except Exception as e:
                 st.error(f"Errore caricamento Spark: {e}")
 
@@ -47,7 +47,7 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
         with st.container(border=True):
             try:
                 ai_img = Image.open("/app/templates/img/ia.png")
-                st.image(ai_img, use_container_width=True)
+                st.image(ai_img, width="stretch")
             except Exception as e:
                 st.caption("AI Copilot")
             
@@ -64,20 +64,20 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
         if m_ok:
             with st.container(border=True):
                 try:
-                    ora_limite = time.time() - 60
+                    ora_limite = time.time() - 300
                     recent_alerts_count = m_client["datalake"]["alerts"].count_documents({"timestamp": {"$gt": ora_limite}})
                     
                     if recent_alerts_count > 0:
                         allarme = Image.open("/app/templates/img/allarme.png")
-                        st.image(allarme, use_container_width=True)
-                        st.error(f"Rilevati {recent_alerts_count} allarmi (ultimi 60\'\')")
+                        st.image(allarme, width="stretch")
+                        st.error(f"Rilevati {recent_alerts_count} allarmi (ultimi 5')")
                     else:
                         protetto = Image.open("/app/templates/img/protetto.png")
-                        st.image(protetto, use_container_width=True)
-                        st.success("Protetto (ultimi 60\'\')")
+                        st.image(protetto, width="stretch")
+                        st.success("Protetto (ultimi 5')")
                 except Exception as e:
                     errore = Image.open("/app/templates/img/errore.png")
-                    st.image(errore, use_container_width=True)
+                    st.image(errore, width="stretch")
                     st.caption(f"Errore: {e}")
                     
     st.markdown("---")

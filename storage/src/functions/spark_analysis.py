@@ -22,10 +22,13 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
         st.warning("Spark Master non disponibile o disconnesso.")
         return
 
-    tab_realtime, tab_profile, tab_sec = st.tabs([
+    tab_realtime, tab_profile, tab_sec, tab_timeline, tab_proto, tab_talkers = st.tabs([
         "Analisi mitigazione", 
         "Bilanciamento del dataset", 
-        "Sicurezza", 
+        "Sicurezza",
+        "Andamento Temporale",
+        "Protocolli di Rete",
+        "Top Talkers"
     ])
 
     with tab_realtime:
@@ -86,7 +89,7 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                     st.metric("Flussi anomali rilevati", f"{anomalie_rilevate}")
                 
                 st.markdown("### Principali nodi attaccanti")
-                st.dataframe(top_attaccanti, use_container_width=True, hide_index=True)
+                st.dataframe(top_attaccanti, width="stretch", hide_index=True)
                 
                 st.markdown("---")
                 st.markdown("### Dettaglio flussi anomali ed azioni correttive")
@@ -178,10 +181,10 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                     height=250,
                     title="Distribuzione del traffico"
                 )
-                st.altair_chart(chart, use_container_width=True)
+                st.altair_chart(chart, width="stretch")
                 
                 st.markdown("**Tabella delle frequenze:**")
-                st.dataframe(balance_df, use_container_width=True, hide_index=True)
+                st.dataframe(balance_df, width="stretch", hide_index=True)
 
     with tab_sec:
         st.subheader("Minacce rilevate")
@@ -226,6 +229,29 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
         
         st.markdown("---")
         
+        st.subheader("Policy di Sicurezza di Rete (ACL)")
+        if m_ok:
+            col_white, col_black = st.columns(2)
+            
+            with col_white:
+                st.markdown("🟢 **White-List (Traffico Sicuro)**")
+                white_list = list(m_client["datalake"]["white_list"].find())
+                if white_list:
+                    for w in white_list:
+                        st.code(f"{w['ip']} - {w.get('description', 'Sicuro')}")
+                else:
+                    st.info("White-list vuota.")
+            
+            with col_black:
+                st.markdown("🔴 **Black-List (Blocco Immediato)**")
+                black_list = list(m_client["datalake"]["black_list"].find())
+                if black_list:
+                    for b in black_list:
+                        st.code(f"{b['ip']} - {b.get('description', 'Malevolo')}")
+                else:
+                    st.info("Black-list vuota.")
+                    
+        st.markdown("---")
         st.subheader("Tracciabilità")
         if m_ok:
             try:
@@ -233,10 +259,84 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                 if logs:
                     df_logs = pd.DataFrame(logs).drop(columns=['_id'])
                     df_logs['timestamp'] = df_logs['timestamp'].dt.strftime('%d-%m-%Y %H:%M:%S')
-                    st.dataframe(df_logs, use_container_width=True, hide_index=True)
+                    st.dataframe(df_logs, width="stretch", hide_index=True)
                 else:
                     st.info("Nessun log registrato.")
             except:
                 st.error("Errore Audit Log")
         if st.button("Aggiorna", key="btn_refresh_audit"):
             st.rerun()
+
+    with tab_timeline:
+        st.subheader("Andamento Temporale del Traffico")
+        if st.button("Calcola Andamento") or "spark_timeline" in st.session_state:
+            if "spark_timeline" not in st.session_state:
+                with st.spinner("Analisi serie storiche in corso..."):
+                    try:
+                        parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
+                        s_session.read.parquet(parquet_path).createOrReplaceTempView("traffico_nids")
+                        with open("/app/analytics/queries/analisi_temporale.sql", "r") as sf:
+                            sql = sf.read()
+                        df_time = s_session.sql(sql).toPandas()
+                        st.session_state["spark_timeline"] = df_time
+                    except Exception as e:
+                        st.error(f"Errore: {e}")
+            
+            df_time = st.session_state.get("spark_timeline")
+            if df_time is not None and not df_time.empty:
+                chart = alt.Chart(df_time).mark_line().encode(
+                    x=alt.X('time_window:T', title='Tempo'),
+                    y=alt.Y('total_bytes:Q', title='Byte Totali'),
+                    color=alt.Color('label:N', title='Classificazione')
+                ).properties(height=350, title="Traffico nel tempo")
+                st.altair_chart(chart, width="stretch")
+
+    with tab_proto:
+        st.subheader("Distribuzione Protocolli e Porte")
+        if st.button("Analizza Protocolli") or "spark_proto" in st.session_state:
+            if "spark_proto" not in st.session_state:
+                with st.spinner("Analisi protocolli in corso..."):
+                    try:
+                        parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
+                        s_session.read.parquet(parquet_path).createOrReplaceTempView("traffico_nids")
+                        with open("/app/analytics/queries/analisi_protocolli.sql", "r") as sf:
+                            sql = sf.read()
+                        df_proto = s_session.sql(sql).toPandas()
+                        st.session_state["spark_proto"] = df_proto
+                    except Exception as e:
+                        st.error(f"Errore: {e}")
+            
+            df_proto = st.session_state.get("spark_proto")
+            if df_proto is not None and not df_proto.empty:
+                chart = alt.Chart(df_proto).mark_bar().encode(
+                    x=alt.X('flow_count:Q', title='Numero Flussi'),
+                    y=alt.Y('port:O', sort='-x', title='Porta Destinazione'),
+                    color=alt.Color('label:N', title='Classificazione'),
+                    tooltip=['protocol_name', 'port', 'flow_count', 'avg_bytes']
+                ).properties(height=400)
+                st.altair_chart(chart, width="stretch")
+
+    with tab_talkers:
+        st.subheader("Top Talkers (Sorgente -> Destinazione)")
+        if st.button("Genera Matrice di Rete") or "spark_talkers" in st.session_state:
+            if "spark_talkers" not in st.session_state:
+                with st.spinner("Calcolo matrice Top Talkers..."):
+                    try:
+                        parquet_path = "/opt/spark/data/processed/BigFlow-NIDS.parquet"
+                        s_session.read.parquet(parquet_path).createOrReplaceTempView("traffico_nids")
+                        with open("/app/analytics/queries/top_talkers.sql", "r") as sf:
+                            sql = sf.read()
+                        df_talkers = s_session.sql(sql).toPandas()
+                        st.session_state["spark_talkers"] = df_talkers
+                    except Exception as e:
+                        st.error(f"Errore: {e}")
+            
+            df_talkers = st.session_state.get("spark_talkers")
+            if df_talkers is not None and not df_talkers.empty:
+                chart = alt.Chart(df_talkers).mark_rect().encode(
+                    x=alt.X('destination_ip:O', title='IP Destinazione'),
+                    y=alt.Y('source_ip:O', title='IP Sorgente'),
+                    color=alt.Color('total_bytes:Q', scale=alt.Scale(scheme='reds'), title='Byte Totali'),
+                    tooltip=['source_ip', 'destination_ip', 'total_bytes', 'flow_count', 'label']
+                ).properties(height=400)
+                st.altair_chart(chart, width="stretch")

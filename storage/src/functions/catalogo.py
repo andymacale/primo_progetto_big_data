@@ -150,7 +150,7 @@ def render_catalogo(m_client, m_ok):
                             st.write(f"**Origine:** {ds['source']}")
                     
                     with st.expander("Visualizza schema"):
-                        st.dataframe(pd.DataFrame(ds['schema']), use_container_width=True, hide_index=True)
+                        st.dataframe(pd.DataFrame(ds['schema']), width="stretch", hide_index=True)
                         
                     with st.expander("Visualizza anteprima"):
                         df_preview = None
@@ -193,7 +193,7 @@ def render_catalogo(m_client, m_ok):
                             
                         if df_preview is not None:
                             st.write("**Anteprima Dati (Prime 10 righe):**")
-                            st.dataframe(df_preview, use_container_width=True)
+                            st.dataframe(df_preview, width="stretch")
                             
                             st.write("**Statistiche Profilazione:**")
                             col_info, col_desc = st.columns([1, 1])
@@ -204,12 +204,12 @@ def render_catalogo(m_client, m_ok):
                                     "Colonna": df_preview.columns,
                                     "Tipo di Dato": [str(t) for t in df_preview.dtypes]
                                 })
-                                st.dataframe(dtypes_df, use_container_width=True, hide_index=True)
+                                st.dataframe(dtypes_df, width="stretch", hide_index=True)
                             with col_desc:
                                 numeric_cols = df_preview.select_dtypes(include=['number']).columns
                                 if len(numeric_cols) > 0:
                                     st.markdown("**Statistiche Colonne Numeriche (Preview):**")
-                                    st.dataframe(df_preview[numeric_cols].describe().T, use_container_width=True)
+                                    st.dataframe(df_preview[numeric_cols].describe().T, width="stretch")
                                 else:
                                     st.info("Nessuna colonna numerica rilevata nella preview per le statistiche descrittive.")
                         else:

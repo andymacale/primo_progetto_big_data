@@ -27,7 +27,7 @@ def render_live_sniffer(m_client, masking):
                     "Protocollo": p.get("proto", "???"),
                     "Dettaglio": p.get("summary", "")[:80]
                 })
-            st.dataframe(pd.DataFrame(pkt_data), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(pkt_data), width="stretch", hide_index=True)
         else:
             st.info("In attesa di pacchetti dall'ingestore...")
     except Exception as e:
@@ -36,16 +36,16 @@ def render_live_sniffer(m_client, masking):
     col_s1, col_s2, col_s3 = st.columns([1.5, 1.5, 7])
 
     with col_s1:
-        if st.button("Aggiorna", use_container_width=True):
+        if st.button("Aggiorna", width="stretch"):
             st.rerun()
 
     with col_s2:
         pcap_path = "/catture/analisi_traffico.pcap"
         if os.path.exists(pcap_path) and os.path.getsize(pcap_path) > 0:
             with open(pcap_path, "rb") as f:
-                st.download_button("Scarica", f, "analisi.pcap", "application/octet-stream", use_container_width=True)
+                st.download_button("Scarica", f, "analisi.pcap", "application/octet-stream", width="stretch")
         else:
-            st.button("Scarica", disabled=True, use_container_width=True)
+            st.button("Scarica", disabled=True, width="stretch")
 
     with col_s3:
         st.info("Per analisi dettagliata, scarica il file ed aprilo con Wireshark")

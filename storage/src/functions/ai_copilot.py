@@ -152,7 +152,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                     label_visibility="collapsed"
                 )
             with col_submit:
-                stop_clicked = st.form_submit_button("Ferma", use_container_width=True)
+                stop_clicked = st.form_submit_button("Ferma", width="stretch")
                 
             if stop_clicked:
                 st.session_state["generating"] = False
@@ -177,7 +177,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                     label_visibility="collapsed"
                 )
             with col_submit:
-                submit_clicked = st.form_submit_button("Invia", use_container_width=True)
+                submit_clicked = st.form_submit_button("Invia", width="stretch")
                 
         if submit_clicked:
             if prompt_utente.strip():

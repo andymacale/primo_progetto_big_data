@@ -29,7 +29,7 @@ except:
 
 if m_ok:
     try:
-        ora_limite = time.time() - 60
+        ora_limite = time.time() - 300
         alert_recenti = list(m_client["datalake"]["alerts"].find({"timestamp": {"$gt": ora_limite}}).sort("timestamp", -1).limit(5))
         
         if alert_recenti:
@@ -45,32 +45,22 @@ if m_ok:
         pass
 
 def force_spark_reset():
-    try:
-        active_session = SparkSession.getActiveSession()
-        if active_session is not None:
-            active_session.stop()
-    except:
-        pass
-    try:
-        sc = SparkContext._active_spark_context
-        if sc is not None:
-            sc.stop()
-    except:
-        pass
     st.cache_resource.clear()
 
 @st.cache_resource
 def get_spark_session():
     jars = [
-        "/opt/spark/src/jars/mongo-spark-connector_2.12-10.3.0.jar",
-        "/opt/spark/src/jars/mongodb-driver-sync-4.11.1.jar",
-        "/opt/spark/src/jars/mongodb-driver-core-4.11.1.jar",
-        "/opt/spark/src/jars/bson-4.11.1.jar",
-        "/opt/spark/src/jars/bson-record-codec-4.11.1.jar"
+        "/app/jars/mongo-spark-connector_2.12-10.3.0.jar",
+        "/app/jars/mongodb-driver-sync-4.11.1.jar",
+        "/app/jars/mongodb-driver-core-4.11.1.jar",
+        "/app/jars/bson-4.11.1.jar",
+        "/app/jars/bson-record-codec-4.11.1.jar"
     ]
     return SparkSession.builder \
         .appName("NIDS-Dashboard") \
         .master("spark://spark-master:7077") \
+        .config("spark.driver.host", "10.0.0.2") \
+        .config("spark.driver.bindAddress", "0.0.0.0") \
         .config("spark.mongodb.read.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.traffico_nids") \
         .config("spark.mongodb.write.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.alerts") \
         .config("spark.jars", ",".join(jars)) \

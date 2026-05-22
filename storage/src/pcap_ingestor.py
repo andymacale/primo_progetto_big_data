@@ -2,6 +2,8 @@ import time
 import os
 from scapy.all import rdpcap, IP, TCP, UDP, ARP
 from pymongo import MongoClient
+import socket
+import datetime
 
 def ingest_pcap():
     pcap_path = "/catture/analisi_traffico.pcap"
@@ -68,14 +70,30 @@ def ingest_pcap():
                         
                         alert_coll = db["alerts"]
                         blocked_ips = set(b['ip'] for b in db["blocked_ips"].find())
+                        white_ips = set(w['ip'] for w in db["white_list"].find())
+                        black_ips = set(b['ip'] for b in db["black_list"].find())
                         
                         for p in to_insert:
                             alert_msg = None
                             attacker_ip = None
+                            src_ip = p.get("src", "???")
+                            
+                            if src_ip in black_ips and src_ip not in blocked_ips:
+                                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                                sock.sendto(f"BLOCK:{src_ip}".encode("utf-8"), ("10.0.0.1", 5000))
+                                sock.close()
+                                
+                                db["blocked_ips"].insert_one({
+                                    "ip": src_ip,
+                                    "reason": "AUTO-BLOCK: Presente in Black-List",
+                                    "blocked_at": datetime.datetime.now(),
+                                    "status": "BLOCKED"
+                                })
+                                blocked_ips.add(src_ip)
+                                print(f"AUTO-BLOCCO ESEGUITO per IP in Black-List: {src_ip}")
                             
                             if p.get("proto") == "TCP":
                                 summary = p.get("summary", "").lower()
-                                src_ip = p.get("src", "???")
                                 dst_ip = p.get("dst", "???")
                                 
                                 if " > " in summary:
@@ -90,6 +108,15 @@ def ingest_pcap():
                                     elif ":ssh" in parte_dst or ":22" in parte_dst:
                                         alert_msg = f"TENTATIVO BRUTE FORCE SSH: Tentativo SSH verso {dst_ip}"
                                         attacker_ip = src_ip
+                                    elif (parte_dst.endswith(":http") or parte_dst.endswith(":80")) and src_ip != "10.0.0.2":
+                                        alert_msg = f"POSSIBILE DOS/SYN FLOOD: Traffico HTTP anomalo verso {dst_ip}"
+                                        attacker_ip = src_ip
+                                    elif ":27017" in parte_dst and src_ip != "10.0.0.2":
+                                        alert_msg = f"ACCESSO DATABASE NON AUTORIZZATO: Tentativo verso MongoDB su {dst_ip}"
+                                        attacker_ip = src_ip
+                            
+                            if attacker_ip in white_ips:
+                                alert_msg = None
                             
                             if alert_msg and attacker_ip:
                                 is_blocked = attacker_ip in blocked_ips

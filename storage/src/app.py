@@ -56,7 +56,8 @@ def get_spark_session():
         "/app/jars/bson-4.11.1.jar",
         "/app/jars/bson-record-codec-4.11.1.jar"
     ]
-    return SparkSession.builder \
+    
+    spark = SparkSession.builder \
         .appName("NIDS-Dashboard") \
         .master("spark://spark-master:7077") \
         .config("spark.driver.host", "10.0.0.2") \
@@ -65,6 +66,8 @@ def get_spark_session():
         .config("spark.mongodb.write.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.alerts") \
         .config("spark.jars", ",".join(jars)) \
         .getOrCreate()
+        
+    return spark
 
 with st.sidebar:
     st.header("Pannello di controllo")
@@ -125,7 +128,7 @@ with tab1:
     homepage.render_homepage(m_client, m_ok, get_spark_session, force_spark_reset)
 
 with tab2:
-    catalogo.render_catalogo(m_client, m_ok)
+    catalogo.render_catalogo(m_client, m_ok, get_spark_session)
 
 with tab3:
     spark_analysis.render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action)

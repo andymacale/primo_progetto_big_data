@@ -25,6 +25,6 @@ export SPARK_MASTER_WEBUI_PORT=8080
 
 # 4. Avvio Spark Worker
 export SPARK_MODE=worker
-export SPARK_WORKER_CORES=4
-export SPARK_WORKER_MEMORY=10G
+export SPARK_WORKER_CORES=2
+export SPARK_WORKER_MEMORY=4G
 /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker spark://2.0.0.194:7077 &

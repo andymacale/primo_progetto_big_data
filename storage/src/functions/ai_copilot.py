@@ -24,64 +24,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     st.header("Assistente IA")
     st.write("Interroga le IA ospitate nel nodo `llm` del Data Center.")
     
-    current_dir = os.path.dirname(__file__)
-    src_dir = os.path.dirname(current_dir)
-    css_path = os.path.join(src_dir, "templates", "gemini_style.css")
-    if not os.path.exists(css_path):
-        css_path = "/app/templates/gemini_style.css"
-    if not os.path.exists(css_path):
-        css_path = "templates/gemini_style.css"
-        
-    if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-
-    def get_base64_image(path):
-        if os.path.exists(path):
-            try:
-                ext = os.path.splitext(path)[1].lower().replace(".", "")
-                mime = f"image/{ext}" if ext in ["png", "webp", "jpeg", "jpg"] else "image/png"
-                with open(path, "rb") as f:
-                    data = f.read()
-                return f"data:{mime};base64,{base64.b64encode(data).decode()}"
-            except:
-                pass
-        return None
-
-    play_path = os.path.join(src_dir, "templates", "img", "play.webp")
-    if not os.path.exists(play_path):
-        play_path = "/app/templates/img/play.webp"
-    if not os.path.exists(play_path):
-        play_path = "templates/img/play.webp"
-
-    stop_path = os.path.join(src_dir, "templates", "img", "stop.png")
-    if not os.path.exists(stop_path):
-        stop_path = "/app/templates/img/stop.png"
-    if not os.path.exists(stop_path):
-        stop_path = "templates/img/stop.png"
-
-    send_b64 = get_base64_image(play_path)
-    stop_b64 = get_base64_image(stop_path)
-
-    bg_img = ""
-    bg_size = "24px 24px"
-    if st.session_state.get("generating", False):
-        if stop_b64:
-            bg_img = f"url('{stop_b64}')"
-            bg_size = "60px 60px"
-    else:
-        if send_b64:
-            bg_img = f"url('{send_b64}')"
-            bg_size = "24px 24px"
-            
-    st.markdown(f"""
-        <style>
-        :root {{
-            --btn-bg-img: {bg_img};
-            --btn-bg-size: {bg_size};
-        }}
-        </style>
-    """, unsafe_allow_html=True)
+    # L'inserimento del CSS è stato spostato nel componente condiviso render_llm_chat_ui
 
     models_list = []
     source_used = "Codice locale (Fallback)"
@@ -91,8 +34,8 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
             db = m_client["datalake"]
             if "llm_models" not in db.list_collection_names() or db["llm_models"].count_documents({}) == 0:
                 default_models = [
-                    {"id": "qwen3.5:9b", "name": "Qwen 3.5 (Ragionamento)", "type": "qwen", "description": "Fase di pensiero approfondito", "order": 1},
-                    {"id": "gemma4:e4b", "name": "Google Gemma 4 (Bilanciato)", "type": "gemma", "description": "Risposte dirette e precise", "order": 2}
+                    {'id': 'llama3.2:3b', 'name': 'Veloce', 'type': 'llama', 'description': "Risposte dirette e veloci", 'order': 1},
+                    {'id': 'qwen3.5:9b', 'name': 'Ragionamento', 'type': 'qwen', 'description': "Fase di pensiero approfondito", 'order': 2}
                 ]
                 db["llm_models"].insert_many(default_models)
             
@@ -101,19 +44,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
         except Exception as e:
             pass
 
-    if get_spark_session:
-        try:
-            s_session = get_spark_session()
-            spark_df = s_session.read.format("mongodb")\
-                .option("database", "datalake")\
-                .option("collection", "llm_models")\
-                .load()
-            models_list_spark = [row.asDict() for row in spark_df.orderBy("order").collect()]
-            if models_list_spark:
-                models_list = models_list_spark
-                source_used = "Apache Spark (Distributed Collection)"
-        except Exception as e:
-            pass
+
 
     if not models_list:
         models_list = [
@@ -123,82 +54,14 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
         
     model_names = [m["name"] for m in models_list]
 
-    if "generating" not in st.session_state:
-        st.session_state["generating"] = False
-    if "current_prompt" not in st.session_state:
-        st.session_state["current_prompt"] = ""
-    if "last_answer" not in st.session_state:
-        st.session_state["last_answer"] = ""
-    if "last_thinking" not in st.session_state:
-        st.session_state["last_thinking"] = ""
-    if "selected_model" not in st.session_state or st.session_state["selected_model"] not in model_names:
-        st.session_state["selected_model"] = model_names[0] if model_names else "Qwen 3.5 (Ragionamento)"
-    if "last_total_time" not in st.session_state:
-        st.session_state["last_total_time"] = 0.0
-    if "last_thinking_time" not in st.session_state:
-        st.session_state["last_thinking_time"] = 0.0
-
-    prompt_utente = ""
-    submit_clicked = False
-
-    if st.session_state["generating"]:
-        with st.form(key="gemini_stop_form", border=False):
-            col_input, col_submit = st.columns([11, 1])
-            with col_input:
-                st.text_input(
-                    "Chiedi a CyberCop...",
-                    value=st.session_state["current_prompt"],
-                    disabled=True,
-                    label_visibility="collapsed"
-                )
-            with col_submit:
-                stop_clicked = st.form_submit_button("Ferma", width="stretch")
-                
-            if stop_clicked:
-                st.session_state["generating"] = False
-                st.rerun()
-                
-        col_model, _ = st.columns([4.5, 7.5])
-        with col_model:
-            st.selectbox(
-                "Scegli modello:",
-                model_names,
-                index=model_names.index(st.session_state["selected_model"]) if st.session_state["selected_model"] in model_names else 0,
-                label_visibility="collapsed",
-                disabled=True
-            )
-    else:
-        with st.form(key="gemini_chat_form", border=False):
-            col_input, col_submit = st.columns([11, 1])
-            with col_input:
-                prompt_utente = st.text_input(
-                    "Chiedi",
-                    placeholder="Chiedi all'assistente IA (es. 'Quali IP ho bloccato nel firewall?')...",
-                    label_visibility="collapsed"
-                )
-            with col_submit:
-                submit_clicked = st.form_submit_button("Invia", width="stretch")
-                
-        if submit_clicked:
-            if prompt_utente.strip():
-                st.session_state["generating"] = True
-                st.session_state["current_prompt"] = prompt_utente
-                st.session_state["last_answer"] = ""
-                st.session_state["last_thinking"] = ""
-                st.session_state["last_total_time"] = 0.0
-                st.session_state["last_thinking_time"] = 0.0
-                st.rerun()
-                
-        col_model, _ = st.columns([4.5, 7.5])
-        with col_model:
-            modello_scelto = st.selectbox(
-                "Scegli modello:",
-                model_names,
-                index=model_names.index(st.session_state["selected_model"]) if st.session_state["selected_model"] in model_names else 0,
-                label_visibility="collapsed"
-            )
-            st.session_state["selected_model"] = modello_scelto
-            st.caption(f"Configurazione modelli caricata dinamicamente da: `{source_used}`")
+    from functions.llm_utils import render_llm_chat_ui
+    prompt_utente, submit_clicked, st.session_state["selected_model"] = render_llm_chat_ui(
+        key_prefix="copilot",
+        placeholder_text="Chiedi all'assistente IA (es. 'Quali IP ho bloccato nel firewall?')...",
+        model_names=model_names,
+        default_model=st.session_state.get("selected_model", model_names[0] if model_names else ""),
+        source_used=source_used
+    )
 
     selected_model_doc = next((m for m in models_list if m["name"] == st.session_state["selected_model"]), None)
     if selected_model_doc:
@@ -223,7 +86,7 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
     answer_area = st.empty()
     timer_area = st.empty()
 
-    if not st.session_state["generating"] and st.session_state.get("last_answer"):
+    if not st.session_state.get("copilot_generating") and st.session_state.get("last_answer"):
         if st.session_state.get("last_thinking"):
             last_think = st.session_state.get("last_thinking_time", 0.0)
             expander_title = f"Ragionato in {last_think:.2f}''" if last_think > 0 else "Ragionamento"
@@ -241,8 +104,8 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 unsafe_allow_html=True
             )
 
-    if st.session_state["generating"]:
-        prompt = st.session_state["current_prompt"]
+    if st.session_state.get("copilot_generating") and submit_clicked:
+        prompt = prompt_utente
         
         p_lower = prompt.strip().lower()
         security_keywords = [
@@ -291,89 +154,37 @@ Domanda dell'utente: {prompt}"""
 
         with st.spinner("Elaborazione in corso..."):
             try:
-                start_time = time.time()
-                thinking_duration = 0.0
-                with requests.post(
-                    "http://llm.cyber.net:11434/api/generate",
-                    json={
-                        "model": model_id,
-                        "prompt": prompt_completo,
-                        "system": system_instructions,
-                        "options": {
-                            "temperature": 0.3,
-                            "top_p": 0.85,
-                            "num_predict": 2048
-                        },
-                        "stream": True
+                gpu_layers = 24 if is_qwen else 12
+                from functions.llm_utils import stream_llm_response
+                clean_answer, thinking_text, elapsed, thinking_duration = stream_llm_response(
+                    model_id=model_id,
+                    prompt=prompt_completo,
+                    system_instructions=system_instructions,
+                    llm_options={
+                        "temperature": 0.2,
+                        "num_ctx": 4096,
+                        "num_gpu": gpu_layers
                     },
-                    stream=True,
-                    timeout=(5, 300)
-                ) as response:
+                    thinking_area=thinking_area,
+                    answer_area=answer_area,
+                    timer_area=timer_area,
+                    format_sql=False
+                )
+                
+                if clean_answer is not None:
+                    answer_title.markdown("### Risposta:")
+                    log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")
                     
-                    if response.status_code == 200:
-                        thinking_text = ""
-                        clean_answer = ""
-                        raw_stream = ""
-                        
-                        for line in response.iter_lines():
-                            if line:
-                                chunk = json.loads(line.decode('utf-8'))
-                                response_token = chunk.get("response", "")
-                                thinking_token = chunk.get("thinking", "")
-                                elapsed = time.time() - start_time
-                                
-                                if thinking_token:
-                                    thinking_duration = elapsed
-                                    thinking_text += thinking_token
-                                    clean_answer += response_token
-                                else:
-                                    raw_stream += response_token
-                                    if "<think>" in raw_stream:
-                                        thinking_duration = elapsed
-                                        import re
-                                        # Estrarre il testo tra <think> e </think> o fine stringa
-                                        t_match = re.search(r'<think>(.*?)(?:</think>|$)', raw_stream, re.DOTALL)
-                                        if t_match:
-                                            thinking_text = t_match.group(1)
-                                        # La clean_answer è il raw_stream senza il blocco <think>...</think>
-                                        c_answer = re.sub(r'<think>.*?(?:</think>|$)', '', raw_stream, flags=re.DOTALL)
-                                        clean_answer = c_answer
-                                    else:
-                                        clean_answer = raw_stream
-                                        
-                                timer_area.markdown(
-                                    f"<div style='font-size:12px; opacity:0.8; margin-top:5px; text-align:right;'>Tempo totale: <strong>{elapsed:.2f}''</strong></div>",
-                                    unsafe_allow_html=True
-                                )
-                                
-                                if thinking_text:
-                                    exp_title = f"Ragionamento in corso: {thinking_duration:.2f}''" if 'thinking_duration' in locals() and thinking_duration > 0 else "Ragionamento in corso..."
-                                    thinking_area.markdown(
-                                        f"<div style='background-color:#1e1e24; border-left:4px solid #9b59b6; padding:12px; border-radius:4px; font-style:italic; color:#d6a2e8; margin-bottom:15px;'> "
-                                        f"<div style='font-weight:bold; margin-bottom:5px; font-size:12px; opacity:0.8;'>{exp_title}</div>"
-                                        f"{thinking_text.strip()}"
-                                        f"</div>",
-                                        unsafe_allow_html=True
-                                    )
-                                
-                                if clean_answer.strip():
-                                    answer_title.markdown("### Risposta:")
-                                    answer_area.markdown(clean_answer.strip())
-                                    
-                                    
-                        log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")
-                    else:
-                        st.error(f"Errore di comunicazione con il server LLM: Stato {response.status_code}")
             except Exception as e:
-                st.error(f"Impossibile connettersi al server LLM a http://localhost:11434. Dettaglio: {e}")
+                st.error(f"Impossibile connettersi al server LLM. Dettaglio: {e}")
             finally:
                 if 'clean_answer' in locals() and clean_answer:
                     st.session_state["last_answer"] = clean_answer
                 if 'thinking_text' in locals() and thinking_text:
                     st.session_state["last_thinking"] = thinking_text
-                if 'elapsed' in locals():
+                if 'elapsed' in locals() and elapsed:
                     st.session_state["last_total_time"] = elapsed
                 if 'thinking_duration' in locals() and thinking_duration:
                     st.session_state["last_thinking_time"] = thinking_duration
-                st.session_state["generating"] = False
+                st.session_state["copilot_generating"] = False
                 st.rerun()

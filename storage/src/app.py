@@ -129,11 +129,6 @@ with st.sidebar:
         time.sleep(2)
         st.rerun()
     
-    st.header("Gestione Sessioni")
-    if st.button("Hard Reset Spark"):
-        force_spark_reset()
-        st.rerun()
-    
     masking = st.toggle("Privacy Mode", False)
 
 def log_action(user, action, details):

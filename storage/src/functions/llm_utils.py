@@ -27,7 +27,6 @@ def stream_llm_response(model_id, prompt, system_instructions, thinking_area, an
     if llm_options:
         options_payload.update(llm_options)
     
-    print(f"[LLM_UTILS] POST to llm.cyber.net model={model_id} prompt_len={len(prompt)}", flush=True)
     try:
         with requests.post(
             "http://llm.cyber.net:11434/api/generate",
@@ -94,7 +93,6 @@ def stream_llm_response(model_id, prompt, system_instructions, thinking_area, an
                 return None, None, 0.0, 0.0
                 
     except Exception as e:
-        print(f"[LLM_UTILS] EXCEPTION: {type(e).__name__}: {e}", flush=True)
         st.error(f"Errore durante la generazione LLM: {e}")
         return None, None, 0.0, 0.0
 

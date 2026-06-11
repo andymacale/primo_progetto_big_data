@@ -1,9 +1,5 @@
 import streamlit as st
-import requests
-import json
-import time
 import os
-import base64
 
 def load_prompt_file(model_type):
     current_dir = os.path.dirname(__file__)
@@ -104,11 +100,8 @@ def render_ai_copilot(m_client, m_ok, log_action, get_spark_session=None):
                 unsafe_allow_html=True
             )
 
-    print(f"[AI_COPILOT] generating={st.session_state.get('copilot_generating')} submit={submit_clicked} prompt={repr(prompt_utente[:30]) if prompt_utente else ''}", flush=True)
-
     if st.session_state.get("copilot_generating") and submit_clicked:
         prompt = prompt_utente
-        print(f"[AI_COPILOT] ENTERING LLM block, model_id={model_id}, prompt={repr(prompt[:40])}", flush=True)
         
         p_lower = prompt.strip().lower()
         security_keywords = [
@@ -156,7 +149,6 @@ Usa questi dati reali del Data Center per rispondere alla domanda dell'utente se
 Domanda dell'utente: {prompt}"""
 
         with st.spinner("Elaborazione in corso..."):
-            print(f"[AI_COPILOT] Calling stream_llm_response model={model_id}", flush=True)
             try:
                 gpu_layers = 24 if is_qwen else 12
                 from functions.llm_utils import stream_llm_response
@@ -175,7 +167,6 @@ Domanda dell'utente: {prompt}"""
                     format_sql=False
                 )
                 
-                print(f"[AI_COPILOT] LLM done, clean_answer={repr(str(clean_answer)[:40]) if clean_answer else None}", flush=True)
                 if clean_answer is not None:
                     answer_title.markdown("### Risposta:")
                     log_action("Admin", "AskAICopilot", f"Interrogato copilot ({model_id}) su: '{prompt[:40]}...'")

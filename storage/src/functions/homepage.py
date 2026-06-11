@@ -128,7 +128,13 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset, check_
             if m_ok:
                 try:
                     num_packets = m_client["datalake"]["live_traffic"].count_documents({})
-                    st.metric("Pacchetti Sniffati", f"{num_packets:,} / 5,000")
+                    try:
+                        stats = m_client["datalake"].command("collStats", "live_traffic")
+                        cap_max = stats.get("max", 0)
+                        label = f"{num_packets:,} / {cap_max:,}" if cap_max > 0 else f"{num_packets:,}"
+                    except Exception:
+                        label = f"{num_packets:,}"
+                    st.metric("Pacchetti Sniffati", label)
                 except Exception as e:
                     st.caption(f"Dettaglio: {e}")
             else:

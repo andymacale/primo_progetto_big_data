@@ -23,6 +23,14 @@ export SPARK_MASTER_WEBUI_PORT=8080
 # 3. Avvio Spark Master
 /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master &
 
+# Attendi che il Master sia in ascolto sulla porta 7077 prima di avviare
+# il Worker: senza questo delay il Worker fallisce la connessione al Master.
+echo "Attesa Spark Master sulla porta 7077..."
+until bash -c "echo >/dev/tcp/2.0.0.194/7077" 2>/dev/null; do
+    sleep 2
+done
+echo "Spark Master pronto. Avvio Worker..."
+
 # 4. Avvio Spark Worker
 export SPARK_MODE=worker
 export SPARK_WORKER_CORES=2

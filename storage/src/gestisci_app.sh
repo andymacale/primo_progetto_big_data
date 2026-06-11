@@ -5,7 +5,7 @@ PORT=80
 
 start_app() {
     echo "Avvio di Streamlit sulla porta $PORT in background..."
-    nohup python3 -m streamlit run /app/app.py --server.port 80 --server.address 0.0.0.0 > /tmp/streamlit.log 2>&1 &
+    nohup python3 -B -m streamlit run /app/app.py --server.port 80 --server.address 0.0.0.0 > /tmp/streamlit.log 2>&1 &
 }
 
 stop_app() {

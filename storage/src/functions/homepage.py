@@ -3,7 +3,7 @@ import socket
 import time
 from PIL import Image
 
-def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):    
+def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset, check_spark_alive=None):
     st.subheader("Stato dei servizi e sicurezza")
     c_col1, c_col2, c_col3, c_col4 = st.columns([1, 1, 1, 1])
     
@@ -28,20 +28,25 @@ def render_homepage(m_client, m_ok, get_spark_session, force_spark_reset):
                 st.error(f"Errore caricamento Spark: {e}")
 
             s_ok = False
+            alive = check_spark_alive if check_spark_alive else (lambda s, **_: s.sql("SELECT 1").collect() or True)
             try:
                 s_test = get_spark_session()
-                s_test.conf.get("spark.app.name")
-                st.success("Online")
-                s_ok = True
-            except Exception as e:
+                if alive(s_test):
+                    st.success("Online")
+                    s_ok = True
+                else:
+                    raise RuntimeError("no response")
+            except Exception:
                 force_spark_reset()
                 try:
                     s_test = get_spark_session()
-                    s_test.conf.get("spark.app.name")
-                    st.success("Online")
-                    s_ok = True
-                except Exception as ex:
-                    st.error(f"Offline\n {ex}")
+                    if alive(s_test):
+                        st.success("Online")
+                        s_ok = True
+                    else:
+                        raise RuntimeError("no response")
+                except Exception:
+                    st.error("Offline")
                     
     with c_col3:
         with st.container(border=True):

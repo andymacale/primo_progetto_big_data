@@ -4,18 +4,20 @@ import os
 import pandas as pd
 import altair as alt
 
-def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action):
+def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action, check_spark_alive=None):
+    alive = check_spark_alive if check_spark_alive else (lambda s, **_: s.sql("SELECT 1").collect() or True)
     try:
         s_session = get_spark_session()
-        s_session.conf.get("spark.app.name")
-        s_ok = True
-    except:
+        s_ok = alive(s_session)
+    except Exception:
+        s_ok = False
+
+    if not s_ok:
         force_spark_reset()
         try:
             s_session = get_spark_session()
-            s_session.conf.get("spark.app.name")
-            s_ok = True
-        except:
+            s_ok = alive(s_session)
+        except Exception:
             s_ok = False
             
     if not s_ok:

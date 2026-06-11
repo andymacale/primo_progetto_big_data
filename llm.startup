@@ -18,12 +18,19 @@ ip route add 192.168.0.0/16 via 2.0.0.225 dev eth0
 ip route add 1.0.0.0/8 via 2.0.0.225 dev eth0
 echo "nameserver 10.1.0.2" > /etc/resolv.conf
 
+# Necessario affinché Ollama accetti connessioni da tutta la rete (non solo localhost)
+export OLLAMA_HOST=0.0.0.0:11434
+
 # Avvio Ollama server in background
 ollama serve &
 
-# Attendi che il server sia pronto
-sleep 5
+# Attendi che il server sia pronto (curl non è installato: usiamo il builtin bash /dev/tcp)
+echo "Attesa avvio Ollama..."
+until bash -c "echo >/dev/tcp/localhost/11434" 2>/dev/null; do
+    sleep 2
+done
+echo "Ollama pronto."
 
-# Pull di un modello leggero (1-2GB) adatto per un ambiente lab
-# Alternativa: llama3.2:1b  oppure  phi3:mini
-ollama pull mistral &
+# Pull dei modelli (saltato se già presenti — ollama pull è idempotente)
+ollama pull llama3.2:3b
+ollama pull qwen3.5:9b

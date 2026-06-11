@@ -3,6 +3,7 @@ from pymongo import MongoClient
 import socket
 import time
 import datetime
+import concurrent.futures
 from pyspark.sql import SparkSession
 from pyspark import SparkContext
 from functions import homepage
@@ -45,7 +46,24 @@ if m_ok:
         pass
 
 def force_spark_reset():
-    st.cache_resource.clear()
+    try:
+        active = SparkSession.getActiveSession()
+        if active is not None:
+            active.stop()
+    except Exception:
+        pass
+    # Azzera i singleton Python subito dopo lo stop, così getOrCreate()
+    # non trova weakref stantii che puntano al contesto appena fermato.
+    for attr in ("_instantiatedSession", "_activeSession"):
+        try:
+            setattr(SparkSession, attr, None)
+        except Exception:
+            pass
+    try:
+        SparkContext._active_spark_context = None
+    except Exception:
+        pass
+    get_spark_session.clear()
 
 @st.cache_resource
 def get_spark_session():
@@ -56,18 +74,53 @@ def get_spark_session():
         "/app/jars/bson-4.11.1.jar",
         "/app/jars/bson-record-codec-4.11.1.jar"
     ]
-    
-    spark = SparkSession.builder \
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+        f = ex.submit(_build_spark_session, jars)
+        spark = f.result(timeout=40)
+
+    return spark
+
+
+def _build_spark_session(jars):
+    """Costruisce la SparkSession (chiamata da thread separato per timeout)."""
+    try:
+        SparkSession._instantiatedSession = None
+    except Exception:
+        pass
+    try:
+        SparkSession._activeSession = None
+    except Exception:
+        pass
+    try:
+        SparkContext._active_spark_context = None
+    except Exception:
+        pass
+
+    return SparkSession.builder \
         .appName("NIDS-Dashboard") \
         .master("spark://spark-master:7077") \
         .config("spark.driver.host", "10.0.0.2") \
         .config("spark.driver.bindAddress", "0.0.0.0") \
+        .config("spark.rpc.askTimeout", "30s") \
+        .config("spark.rpc.lookupTimeout", "30s") \
         .config("spark.mongodb.read.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.traffico_nids") \
         .config("spark.mongodb.write.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.alerts") \
         .config("spark.jars", ",".join(jars)) \
         .getOrCreate()
-        
-    return spark
+
+
+def check_spark_alive(session, timeout=12):
+    """Verifica che il JVM SparkContext sia attivo (senza richiedere un executor)."""
+    try:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=1) as ex:
+            # applicationId chiama il JVM via Py4J: fallisce subito se il contesto è fermo,
+            # senza bisogno di lanciare un executor (che impiega 5-15s per avviarsi).
+            f = ex.submit(lambda: session.sparkContext.applicationId)
+            f.result(timeout=timeout)
+        return True
+    except Exception:
+        return False
 
 with st.sidebar:
     st.header("Pannello di controllo")
@@ -125,13 +178,13 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 with tab1:
-    homepage.render_homepage(m_client, m_ok, get_spark_session, force_spark_reset)
+    homepage.render_homepage(m_client, m_ok, get_spark_session, force_spark_reset, check_spark_alive)
 
 with tab2:
-    catalogo.render_catalogo(m_client, m_ok, get_spark_session)
+    catalogo.render_catalogo(m_client, m_ok, get_spark_session, force_spark_reset, check_spark_alive)
 
 with tab3:
-    spark_analysis.render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action)
+    spark_analysis.render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, block_ip, log_action, check_spark_alive)
 
 with tab4:
     live_sniffer.render_live_sniffer(m_client, masking)

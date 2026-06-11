@@ -22,8 +22,16 @@ ip route add 100.0.0.0/8 via 10.0.0.1 dev eth0
 # Risoluzione nomi per i servizi del Data Lake
 echo "2.0.0.194 spark-master" >> /etc/hosts
 echo "2.0.0.195 mongo.cyber.net" >> /etc/hosts
+echo "2.0.0.226 llm.cyber.net" >> /etc/hosts
 
-sleep 15
+# Attendi che Spark Master sia effettivamente in ascolto sulla porta 7077
+# prima di avviare la dashboard, così la prima connessione non fallisce mai.
+echo "Attesa Spark Master su 2.0.0.194:7077..."
+until bash -c "echo >/dev/tcp/2.0.0.194/7077" 2>/dev/null; do
+    sleep 3
+done
+echo "Spark Master raggiungibile. Avvio dashboard..."
+
 bash /app/gestisci_app.sh start
 
 # Sincronizza le regole firewall pre-esistenti sul web_server

@@ -114,7 +114,7 @@ def validate_and_sanitize_csv(uploaded_file):
         "columns": rows[0]
     }
 
-def render_catalogo(m_client, m_ok, get_spark_session=None):
+def render_catalogo(m_client, m_ok, get_spark_session=None, force_spark_reset=None, check_spark_alive=None):
     if m_ok:
         tab_cat, tab_explore = st.tabs(["Catalogo Dati", "Data Lake explorer"])
         
@@ -307,31 +307,59 @@ def render_catalogo(m_client, m_ok, get_spark_session=None):
         with tab_explore:
             st.subheader("Data Lake Explorer (Motore di Federazione Spark)")
             st.markdown("Interroga dati eterogenei (Parquet, MongoDB, etc.) utilizzando Spark SQL come layer di Data Federation.")
-            
+
             if get_spark_session is None:
                 st.error("Motore Spark non disponibile.")
             else:
+                alive = check_spark_alive if check_spark_alive else (lambda s, **_: s.sql("SELECT 1").collect() or True)
+                spark_ready = False
                 try:
                     s_session = get_spark_session()
-                    s_session.conf.get("spark.app.name")
-                    spark_ready = True
-                except:
+                    spark_ready = alive(s_session)
+                except Exception:
                     spark_ready = False
-                    st.error("Connessione a Spark interrotta. Vai in Homepage e ripristina la sessione.")
-                    
+                if not spark_ready:
+                    if force_spark_reset is not None:
+                        force_spark_reset()
+                    try:
+                        s_session = get_spark_session()
+                        spark_ready = alive(s_session)
+                    except Exception:
+                        spark_ready = False
+                if not spark_ready:
+                    st.error("Connessione a Spark interrotta. Riprova tra qualche secondo o clicca Hard Reset Spark.")
+
                 if spark_ready:
+                    import concurrent.futures as _cf
                     with st.spinner("Connessione e mount delle View Federate..."):
-                        try:
-                            if "storico_parquet" not in [t.name for t in s_session.catalog.listTables()]:
+                        mount_error = None
+                        def _mount_views():
+                            existing = [t.name for t in s_session.catalog.listTables()]
+                            if "storico_parquet" not in existing:
                                 s_session.read.parquet("/opt/spark/data/processed/BigFlow-NIDS.parquet").createOrReplaceTempView("storico_parquet")
-                            
                             if "live_mongo" not in [t.name for t in s_session.catalog.listTables()]:
-                                df_live = s_session.read.format("mongodb").option("spark.mongodb.read.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.live_traffic").load()
+                                df_live = (s_session.read.format("mongodb")
+                                    .option("spark.mongodb.read.connection.uri",
+                                            "mongodb://mongo.cyber.net:27017/datalake.live_traffic")
+                                    .load())
                                 df_live.createOrReplaceTempView("live_mongo")
-                            
-                            st.success("Data Federation Attiva: `storico_parquet` e `live_mongo` pronte per l'interrogazione congiunta.")
+                        # Non usiamo il context manager (with) per evitare che shutdown(wait=True)
+                        # blocchi indefinitamente dopo il timeout se l'executor Spark non è pronto.
+                        _ex = _cf.ThreadPoolExecutor(max_workers=1)
+                        _f = _ex.submit(_mount_views)
+                        try:
+                            _f.result(timeout=45)
+                        except _cf.TimeoutError:
+                            mount_error = "Executor Spark non ancora pronto. Ricarica la pagina tra qualche secondo."
                         except Exception as e:
-                            st.warning(f"Errore nel montaggio di una o più fonti dati: {e}")
+                            mount_error = f"Errore nel montaggio di una o più fonti dati: {e}"
+                        finally:
+                            _ex.shutdown(wait=False)
+
+                        if mount_error:
+                            st.warning(mount_error)
+                        else:
+                            st.success("Data Federation Attiva: `storico_parquet` e `live_mongo` pronte per l'interrogazione congiunta.")
                             
                     st.markdown("---")
                     

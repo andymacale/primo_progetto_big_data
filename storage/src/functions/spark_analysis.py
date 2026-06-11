@@ -246,12 +246,14 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             
             with col_black:
                 st.markdown("Traffico Malevolo")
-                black_list = list(m_client["datalake"]["black_list"].find())
-                if black_list:
-                    for b in black_list:
-                        st.code(f"{b['ip']} - {b.get('description', 'Malevolo')}")
+                blocked_ips_list = list(m_client["datalake"]["blocked_ips"].find({"status": "BLOCKED"}))
+                if blocked_ips_list:
+                    for b in blocked_ips_list:
+                        blocked_at = b.get('blocked_at')
+                        blocked_at_str = blocked_at.strftime('%d-%m-%Y %H:%M') if hasattr(blocked_at, 'strftime') else ''
+                        st.code(f"{b['ip']} — Bloccato il {blocked_at_str}")
                 else:
-                    st.info("Black-list vuota.")
+                    st.info("Nessun IP bloccato.")
                     
         st.markdown("---")
         st.subheader("Tracciabilità")

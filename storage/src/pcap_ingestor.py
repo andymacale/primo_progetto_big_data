@@ -108,7 +108,7 @@ def ingest_pcap():
                                     elif ":ssh" in parte_dst or ":22" in parte_dst:
                                         alert_msg = f"TENTATIVO BRUTE FORCE SSH: Tentativo SSH verso {dst_ip}"
                                         attacker_ip = src_ip
-                                    elif (parte_dst.endswith(":http") or parte_dst.endswith(":80")) and src_ip != "10.0.0.2":
+                                    elif (":http" in parte_dst or ":80" in parte_dst) and src_ip != "10.0.0.2":
                                         alert_msg = f"POSSIBILE DOS/SYN FLOOD: Traffico HTTP anomalo verso {dst_ip}"
                                         attacker_ip = src_ip
                                     elif ":27017" in parte_dst and src_ip != "10.0.0.2":

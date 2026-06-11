@@ -116,7 +116,7 @@ def validate_and_sanitize_csv(uploaded_file):
 
 def render_catalogo(m_client, m_ok, get_spark_session=None):
     if m_ok:
-        tab_cat, tab_explore = st.tabs(["Catalogo Dati", "Data Lake Explorer (Federazione)"])
+        tab_cat, tab_explore = st.tabs(["Catalogo Dati", "Data Lake explorer"])
         
         with tab_cat:
             search = st.text_input("", placeholder="Cerca dataset nel catalogo...")
@@ -322,11 +322,9 @@ def render_catalogo(m_client, m_ok, get_spark_session=None):
                 if spark_ready:
                     with st.spinner("Connessione e mount delle View Federate..."):
                         try:
-                            # Montaggio Storage Batch
                             if "storico_parquet" not in [t.name for t in s_session.catalog.listTables()]:
                                 s_session.read.parquet("/opt/spark/data/processed/BigFlow-NIDS.parquet").createOrReplaceTempView("storico_parquet")
                             
-                            # Montaggio Storage Speed (MongoDB)
                             if "live_mongo" not in [t.name for t in s_session.catalog.listTables()]:
                                 df_live = s_session.read.format("mongodb").option("spark.mongodb.read.connection.uri", "mongodb://mongo.cyber.net:27017/datalake.live_traffic").load()
                                 df_live.createOrReplaceTempView("live_mongo")

@@ -26,9 +26,9 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
         "Analisi mitigazione", 
         "Bilanciamento del dataset", 
         "Sicurezza",
-        "Andamento Temporale",
-        "Protocolli di Rete",
-        "Top Talkers"
+        "Andamento temporale",
+        "Protocolli di rete",
+        "Top talkers"
     ])
 
     with tab_realtime:
@@ -192,7 +192,7 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
             col_alert, col_blocked = st.columns(2)
             
             with col_alert:
-                st.markdown("**Alert Recenti (ultimi 60\'\')**")
+                st.markdown("**Alert recenti (ultimi 5\')**")
                 alerts = list(m_client["datalake"]["alerts"].find().sort("timestamp", -1).limit(10))
                 blocked_list = list(m_client["datalake"]["blocked_ips"].find())
                 blocked_ips = set(b['ip'] for b in blocked_list)
@@ -229,12 +229,12 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
         
         st.markdown("---")
         
-        st.subheader("Policy di Sicurezza di Rete (ACL)")
+        st.subheader("Policy di sicurezza di rete")
         if m_ok:
             col_white, col_black = st.columns(2)
             
             with col_white:
-                st.markdown("🟢 **White-List (Traffico Sicuro)**")
+                st.markdown("Traffico sicuro")
                 white_list = list(m_client["datalake"]["white_list"].find())
                 if white_list:
                     for w in white_list:
@@ -243,7 +243,7 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                     st.info("White-list vuota.")
             
             with col_black:
-                st.markdown("🔴 **Black-List (Blocco Immediato)**")
+                st.markdown("Traffico Malevolo")
                 black_list = list(m_client["datalake"]["black_list"].find())
                 if black_list:
                     for b in black_list:

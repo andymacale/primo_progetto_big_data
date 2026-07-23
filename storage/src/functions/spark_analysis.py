@@ -107,7 +107,7 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                 for idx, row in top_attaccanti.iterrows():
                     ip = row['ip_attaccante']
                     pacchetti = row['occorrenze']
-                    classe = row['classe']
+                    tipo_attacco = row['tipo_attacco']
                     is_blocked = ip in blocked_ips
                     
                     with st.container(border=True):
@@ -117,7 +117,7 @@ def render_spark_analysis(m_client, m_ok, get_spark_session, force_spark_reset, 
                         with c_cnt:
                             st.write(f"**Flussi:** {pacchetti:,}")
                         with c_lbl:
-                            st.markdown(f"`{classe}`")
+                            st.markdown(f"`{tipo_attacco}`")
                         with c_status:
                             if is_blocked:
                                 st.success("Protetto")
